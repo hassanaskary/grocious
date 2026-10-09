@@ -148,14 +148,33 @@ the same archive-backed HTTP API as other agent clients and runs over stdio; it 
 a listener or need direct access to `data/` or grocery-provider credentials. It needs the
 Grocious web service running and a bearer token for the agent API.
 
-Install the optional MCP SDK in a separate environment:
+### Enable agent access
+
+Create a bearer token and add it to the `.env` used by Compose. If you keep runtime files in
+`GROCIOUS_HOME`, add it to that directory's `.env` instead. Create the `.env` from
+`.env.example` first if needed.
+
+```bash
+printf '\nGROCIOUS_AGENT_API_TOKEN=%s\n' "$(openssl rand -hex 32)" >> "${GROCIOUS_HOME:-.}/.env"
+chmod 600 "${GROCIOUS_HOME:-.}/.env"
+docker compose up -d --build web
+```
+
+Keep the token private and do not commit the `.env` file. The same token is needed by the
+agent's MCP client configuration; copy it from the `.env` using a secure method.
+
+### Configure an agent MCP client
+
+Install the optional MCP SDK in a separate environment on the machine that will run the
+MCP server:
 
 ```bash
 uv venv .venv-agent
 uv pip install --python .venv-agent/bin/python -r agent/requirements.txt
 ```
 
-Configure your MCP host to start the server, replacing both paths with absolute paths:
+Add a Grocious server entry to the agent host's MCP configuration. Replace both paths with
+absolute paths and set the token to the same value configured above:
 
 ```json
 {
@@ -172,22 +191,25 @@ Configure your MCP host to start the server, replacing both paths with absolute 
 }
 ```
 
-Set the token in the MCP host configuration to the same value used by the Grocious web
-container. The MCP server exposes household sync status, receipt search, receipt details, and
-spending summaries. Inbox receipts are excluded from agent spending by default because an
-uploaded receipt can also exist in a provider archive; set `include_inbox` when needed and keep
-review state visible.
+When the MCP server runs on the same machine as Grocious, use the local URL shown above. For a
+different machine, use an HTTPS URL reachable by that machine, such as an authenticated reverse
+proxy; Grocious binds to localhost by default. The MCP server exposes household sync status,
+receipt search, receipt details, and spending summaries. Inbox receipts are excluded from agent
+spending by default because an uploaded receipt can also exist in a provider archive; set
+`include_inbox` when needed and keep review state visible.
+
+To have a coding agent set this up, ask it to follow this section, create a random token, add it
+to both the Grocious runtime `.env` and the MCP host configuration, preserve other MCP entries,
+and keep the token out of chat, command output, and Git. The agent should report which files it
+changed and whether the web service or MCP host needs restarting.
+
 The repository skill at `.agents/skills/grocious-spending/SKILL.md` gives compatible agents the
 household-specific rules for interpreting these tools.
 
 The HTTP endpoints are documented in [agent/openapi.yaml](agent/openapi.yaml) under
-`/api/agent/v1`. Set `GROCIOUS_AGENT_API_TOKEN` in `.env` and recreate the web container with
-`docker compose up -d --build web` to enable them; requests require `Authorization: Bearer <token>`.
-Generate a token with `openssl rand -hex 32`. Keep Grocious
-behind the existing local bind or an authenticated reverse proxy, and only share the token
-with a trusted agent. Use HTTPS when configuring a non-local MCP API URL; the MCP client
-rejects non-local HTTP URLs. The HTTP agent API returns normalized receipt data and omits raw
-provider payloads and document contents.
+`/api/agent/v1`; requests require `Authorization: Bearer <token>`. Only share the token with a
+trusted agent. The HTTP agent API returns normalized receipt data and omits raw provider payloads
+and document contents.
 
 ## Web UI
 
