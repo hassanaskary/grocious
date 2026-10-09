@@ -346,8 +346,24 @@ def coop_dashboard(selected=None):
 @app.route("/")
 def index():
     selected = request.args.get("member") or None
-    provider = request.args.get("provider") or ""
-    selected_store = request.args.get("store", "").strip()
+    available_retailers = retailers.all()
+    filter_value = request.args.get("receipt_filter")
+    if filter_value is None:
+        legacy_provider = request.args.get("provider") or ""
+        legacy_store = request.args.get("store", "").strip()
+        filter_value = f"provider:{legacy_provider}" if legacy_provider in ("trumf", "rema", "coop") else (
+            f"store:{legacy_store}" if legacy_store else ""
+        )
+    provider = ""
+    selected_store = ""
+    if filter_value.startswith("provider:") and filter_value[9:] in ("trumf", "rema", "coop"):
+        provider = filter_value[9:]
+    elif filter_value.startswith("store:"):
+        selected_store = next(
+            (name for name in available_retailers if name.casefold() == filter_value[6:].strip().casefold()),
+            "",
+        )
+    selected_filter = f"provider:{provider}" if provider else f"store:{selected_store}" if selected_store else ""
     member_rows = [{"id":"default","name":"Demo"}] if DEMO else profiles.all()
     inbox_rows = sorted(
         (x for x in receipt_archive.summary("inbox")["receipts"] if x.get("review", {}).get("state") not in ("linked", "discarded")),
@@ -362,13 +378,15 @@ def index():
     inbox_rows = [x for x in inbox_rows if not selected or (x.get("profile_id") or "default")==selected]
     if selected_store:
         needle = selected_store.casefold()
-        inbox_rows = [x for x in inbox_rows if needle in (x.get("store") or "").casefold()]
+        inbox_rows = [x for x in inbox_rows if (x.get("store") or "").casefold() == needle]
         for data in (t, r, c):
-            data["receipts"] = [x for x in data.get("receipts", []) if needle in (x.get("store") or "").casefold()]
+            data["receipts"] = [x for x in data.get("receipts", []) if (x.get("store") or "").casefold() == needle]
             if "count" in data:
                 data["count"] = len(data["receipts"])
+    elif provider:
+        inbox_rows = []
     return render_template("index.html", t=t, r=r, c=c, members=member_rows, selected_member=selected, selected_provider=provider,
-      selected_store=selected_store, retailers=retailers.all(),
+      selected_store=selected_store, selected_filter=selected_filter, retailers=available_retailers,
       offer_cards=[o for source, data in [("rema",r),("trumf",t),("coop",c)] for o in offer_ui.cards(source,data.get("offers"))],
       stats=dashboard_stats.cards(t,r,c,profile_id=selected,provider=provider or None,store=selected_store or None), inbox=inbox_store.summary(), inbox_rows=inbox_rows, demo=DEMO, **ui.context(t, r, c))
 

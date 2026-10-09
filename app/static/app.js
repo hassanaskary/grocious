@@ -66,7 +66,7 @@
   // ---- filters ----------------------------------------------------------
   var nokFmt = new Intl.NumberFormat(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   function nok(x) { return nokFmt.format(x) + (locale === "no" ? " kr" : " NOK"); }
-  var chain = "", month = "", page = 0, pageSize = 50;
+  var month = "", page = 0, pageSize = 50;
   var items = Array.prototype.slice.call(document.querySelectorAll("#list > .receipt"));
   items.sort(function (a, b) { return b.dataset.date.localeCompare(a.dataset.date); });
   var list = document.getElementById("list");
@@ -77,7 +77,7 @@
   function applyFilters() {
     var n = 0, sum = 0, bonus = 0, disc = 0;
     items.forEach(function (li) {
-      var show = (!chain || li.dataset.chain === chain) && (!month || li.dataset.month === month) && matchesExtra(li, "list");
+      var show = (!month || li.dataset.month === month) && matchesExtra(li, "list");
       li.hidden = !show || n < page * pageSize || n >= (page + 1) * pageSize;
       if (show) { n++; sum += +li.dataset.amount || 0; bonus += +li.dataset.bonus || 0; disc += +li.dataset.discount || 0; }
     });
@@ -88,12 +88,6 @@
     if (totalsEl) totalsEl.textContent = n ? "Sum " + nok(sum) + (bonus ? " · bonus " + nok(bonus) : "") + (disc ? " · rabatt " + nok(disc) : "") : "";
     if (emptyEl) emptyEl.hidden = n > 0;
   }
-  document.querySelectorAll(".chips .chip[data-chain]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      document.querySelectorAll(".chips .chip[data-chain]").forEach(function (x) { x.classList.remove("on"); });
-      b.classList.add("on"); chain = b.dataset.chain || ""; page = 0; applyFilters();
-    });
-  });
   var sortSel = document.getElementById("receipt-sort");
   if (sortSel) sortSel.addEventListener("change", function () {
     var parts = sortSel.value.split("-"), key = parts[0], direction = parts[1] === "asc" ? 1 : -1;

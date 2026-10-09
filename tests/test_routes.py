@@ -28,7 +28,7 @@ def test_index_renders_everything(client):
     assert 'id="theme"' in html and "Catppuccin Mocha" in html and 'value="auto"' in html
     assert 'id="language"' in html and 'value="no"' in html and "Activate" in html and "✓ Activated" in html
     assert html.index('src="/translations.js"') < html.index('src="/static/app.js"')
-    assert 'data-chain="trumf"' in html and 'data-chain="rema"' in html
+    assert 'data-source="trumf"' in html and 'data-source="rema"' in html
     assert 'data-month="2026-06"' in html  # dates populate the shared period controls
     assert "412.37\u00a0NOK" in html
     assert "<style>" not in html  # no inline CSS left
@@ -79,6 +79,54 @@ def test_language_translation_preserves_user_supplied_store_names(client, tmp_pa
     detail_path = upload_language_test_receipt(client, store_name="Kjøp")
     html = client.get(detail_path).get_data(as_text=True)
     assert '<h1><span translate="no">Kjøp</span></h1>' in html
+
+
+def test_homepage_has_one_filter_with_providers_and_manual_retailers(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("GROCERY_DATA", str(tmp_path))
+    upload_language_test_receipt(client, store_name="Elkjøp")
+
+    html = client.get("/").get_data(as_text=True)
+
+    assert html.count('id="retailer-filter"') == 1
+    assert 'name="receipt_filter"' in html
+    assert 'value="provider:trumf"' in html
+    assert 'value="provider:rema"' in html
+    assert 'value="provider:coop"' in html
+    assert 'value="store:Elkjøp"' in html
+    assert 'id="provider-filter"' not in html
+    assert 'class="chips"' not in html
+    assert 'name="store"' not in html
+
+
+def test_homepage_retailer_filter_selects_manual_store_or_provider(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("GROCERY_DATA", str(tmp_path))
+    upload_language_test_receipt(client, store_name="Elkjøp")
+
+    manual_store = client.get("/?receipt_filter=store%3AElkj%C3%B8p").get_data(as_text=True)
+    assert '<option value="store:Elkjøp" selected>Elkjøp</option>' in manual_store
+    assert 'data-source="inbox"' in manual_store
+    assert 'data-store="Elkjøp"' in manual_store
+    assert 'data-source="trumf"' not in manual_store
+
+    rema_provider = client.get("/?receipt_filter=provider%3Arema").get_data(as_text=True)
+    assert '<option value="provider:rema" selected>Rema</option>' in rema_provider
+    assert 'data-source="rema"' in rema_provider
+    assert 'data-source="trumf"' not in rema_provider
+    assert 'data-source="coop"' not in rema_provider
+    assert 'data-source="inbox"' not in rema_provider
+
+
+def test_homepage_retailer_filter_labels_follow_selected_language(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("GROCERY_DATA", str(tmp_path))
+    upload_language_test_receipt(client, store_name="Elkjøp")
+    client.post("/language", data={"language": "no"})
+
+    html = client.get("/").get_data(as_text=True)
+
+    assert ">Alle kjeder</option>" in html
+    assert 'label="Tilkoblet kjede"' in html
+    assert 'label="Butikk / forhandler"' in html
+    assert ">Filtrer</button>" in html
 
 
 def test_index_survives_failed_sources(client, monkeypatch):
