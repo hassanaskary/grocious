@@ -75,17 +75,41 @@
   var pageEl = document.getElementById("receipt-page");
   var countEl = document.getElementById("count"), totalsEl = document.getElementById("totals"), emptyEl = document.getElementById("empty");
   function applyFilters() {
-    var n = 0, sum = 0, bonus = 0, disc = 0;
+    var n = 0, sum = 0, totals = {
+      trumfBonus: 0, remaBonus: 0, coopBonus: 0,
+      remaDiscount: 0, coopDiscount: 0
+    };
     items.forEach(function (li) {
       var show = (!month || li.dataset.month === month) && matchesExtra(li, "list");
       li.hidden = !show || n < page * pageSize || n >= (page + 1) * pageSize;
-      if (show) { n++; sum += +li.dataset.amount || 0; bonus += +li.dataset.bonus || 0; disc += +li.dataset.discount || 0; }
+      if (show) {
+        n++;
+        sum += +li.dataset.amount || 0;
+        var source = li.dataset.source;
+        if (source === "trumf") totals.trumfBonus += +li.dataset.bonus || 0;
+        if (source === "rema") {
+          totals.remaBonus += +li.dataset.bonus || 0;
+          totals.remaDiscount += +li.dataset.discount || 0;
+        }
+        if (source === "coop") {
+          totals.coopBonus += +li.dataset.bonus || 0;
+          totals.coopDiscount += +li.dataset.discount || 0;
+        }
+      }
     });
     if (prev) prev.hidden = page === 0;
     if (next) next.hidden = (page + 1) * pageSize >= n;
     if (pageEl) pageEl.textContent = n ? "Viser " + (page * pageSize + 1) + "–" + Math.min((page + 1) * pageSize, n) + " av " + n : "";
     if (countEl) countEl.textContent = n + " kvitteringer";
-    if (totalsEl) totalsEl.textContent = n ? "Sum " + nok(sum) + (bonus ? " · bonus " + nok(bonus) : "") + (disc ? " · rabatt " + nok(disc) : "") : "";
+    if (totalsEl) {
+      var isEnglish = locale === "en", parts = [];
+      if (totals.trumfBonus) parts.push("Trumf bonus " + nok(totals.trumfBonus));
+      if (totals.remaBonus) parts.push("REMA bonus " + nok(totals.remaBonus));
+      if (totals.coopBonus) parts.push("Coop bonus " + nok(totals.coopBonus));
+      if (totals.remaDiscount) parts.push("REMA " + (isEnglish ? "discount " : "rabatt ") + nok(totals.remaDiscount));
+      if (totals.coopDiscount) parts.push("Coop " + (isEnglish ? "discount " : "rabatt ") + nok(totals.coopDiscount));
+      totalsEl.textContent = n ? (isEnglish ? "Total " : "Sum ") + nok(sum) + (parts.length ? " · " + parts.join(" · ") : "") : "";
+    }
     if (emptyEl) emptyEl.hidden = n > 0;
   }
   var sortSel = document.getElementById("receipt-sort");

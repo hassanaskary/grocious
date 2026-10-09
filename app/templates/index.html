@@ -145,14 +145,14 @@
     </li>
     {% endfor %}{% endif %}
     {% if r.ok %}{% for x in r.receipts %}
-    <li class="receipt" data-profile="{{ x.profile_id or 'default' }}" data-source="rema" data-id="{{ x.id }}" data-month="{{ x.date[:7] }}" data-date="{{ x.date or '' }}" data-store="{{ x.store or '' }}" data-amount="{{ x.amount if x.amount is not none else '' }}" data-discount="{{ x.discount if x.discount is not none else '' }}"
+    <li class="receipt" data-profile="{{ x.profile_id or 'default' }}" data-source="rema" data-id="{{ x.id }}" data-month="{{ x.date[:7] }}" data-date="{{ x.date or '' }}" data-store="{{ x.store or '' }}" data-amount="{{ x.amount if x.amount is not none else '' }}" data-bonus="{{ x.bonus if x.bonus is not none else '' }}" data-discount="{{ x.discount if x.discount is not none else '' }}"
         data-lines="/rema/receipt/{{ x.profile_id or 'default' }}/{{ x.id }}.json">
       <button class="head" type="button" aria-expanded="false">
         <span class="badge rema">Rema</span>
         <span class="store"><span translate="no">{{ x.store }}</span><small class="receipt-owner" translate="no">{{ x.profile_name or 'Default' }}</small></span>
         <span class="date">{{ x.date|dt }}</span>
         <span class="amt" data-num>{{ x.amount|nok(2) }}</span>
-        <span class="extra pos" data-num>{% if x.discount %}−{{ x.discount|num(2) }}{% endif %}</span>
+        <span class="extra pos" data-num>{% if x.bonus %}+{{ x.bonus|num(2) }}{% endif %}{% if x.discount %} −{{ x.discount|num(2) }}{% endif %}</span>
         <span class="caret" aria-hidden="true">▸</span>
       </button>
       <div class="body" hidden>
