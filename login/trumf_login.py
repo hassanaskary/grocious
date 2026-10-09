@@ -1,7 +1,11 @@
 import asyncio, os, json
+from getpass import getpass
 from playwright.async_api import async_playwright
-PHONE=os.environ["TRUMF_PHONE"]; PW=os.environ["TRUMF_PASSWORD"]
-SMS_FILE="/work/data/sms_code.txt"
+from common import profile_dir
+DATA=profile_dir()
+USE_ENV=os.environ.get("GROCIOUS_PROFILE", "Default").casefold()=="default" or os.environ.get("GROCIOUS_USE_ENV_CREDENTIALS")=="1"
+PHONE=(os.environ.get("TRUMF_PHONE") if USE_ENV else None) or input("Trumf phone: ").strip()
+PW=(os.environ.get("TRUMF_PASSWORD") if USE_ENV else None) or getpass("Trumf password: ")
 caps={"token_resp":None}
 async def click_any(pg, texts):
     for t in texts:
@@ -34,14 +38,7 @@ async def main():
         await click_any(pg, ["Logg inn","Neste","Fortsett"]); await pg.wait_for_timeout(6000)
         await pg.screenshot(path="/work/discovery/sms_step.png")
         if "smsCode" in pg.url or await pg.query_selector('input[autocomplete="one-time-code"]') or await pg.query_selector('input[inputmode="numeric"]'):
-            print("SMS_SENT — waiting for code file (up to 6 min)...", flush=True)
-            code=None
-            for _ in range(120):
-                if os.path.exists(SMS_FILE):
-                    c=open(SMS_FILE).read().strip()
-                    if c: code=c; break
-                await asyncio.sleep(3)
-            if not code: print("NO_CODE_TIMEOUT"); await b.close(); return
+            code=input("SMS code: ").strip()
             print("GOT_CODE, entering...", flush=True)
             boxes=await pg.query_selector_all('input[autocomplete="one-time-code"], input[inputmode="numeric"], input[type="tel"]')
             if len(boxes)==1: await boxes[0].fill(code)
@@ -54,10 +51,10 @@ async def main():
         except Exception as e: print("post-sms wait:", e)
         await pg.wait_for_timeout(6000); await pg.screenshot(path="/work/discovery/final.png")
         print("FINAL_URL:", pg.url)
-        await ctx.storage_state(path="/work/data/trumf_state.json")
+        await ctx.storage_state(path=str(DATA/"trumf_state.json"))
         tr=caps["token_resp"]
         if tr:
-            open("/work/data/trumf_tokens.json","w").write(json.dumps(tr))
+            open(DATA/"trumf_tokens.json","w").write(json.dumps(tr))
             print("TOKEN_KEYS:", list(tr.keys()), "HAS_REFRESH:", "refresh_token" in tr, "EXPIRES_IN:", tr.get("expires_in"))
             print("SUCCESS: tokens captured")
         else:

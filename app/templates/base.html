@@ -44,6 +44,14 @@ try { var th = localStorage.getItem("grocious.theme"); if (th && th !== "auto") 
           <div class="navigation-actions"><button class="btn" id="navigation-add" type="button">Legg til lenke</button><button class="btn" type="submit">Lagre</button></div>
           <p id="navigation-status" class="mut small" role="status"></p>
         </form>
+        <form id="profile-create" class="navigation-settings">
+          <h3>Husholdning</h3>
+          <ul class="member-list">{% for member in household_profiles %}<li><div class="member-edit"><input class="member-name" data-profile-id="{{ member.id }}" value="{{ member.name }}" maxlength="64" aria-label="Navn for {{ member.name }}"><button class="btn profile-rename" type="button" data-profile-id="{{ member.id }}">Lagre navn</button></div><span class="mut small">{{ member.providers|join(' · ') if member.providers else 'Ingen kontoer koblet til' }}</span></li>{% endfor %}</ul>
+          <label for="profile-name">Legg til medlem</label>
+          <div class="navigation-actions"><input id="profile-name" name="name" maxlength="64" required placeholder="Navn"><button class="btn" type="submit">Legg til</button></div>
+          <p id="profile-status" class="mut small" role="status"></p>
+          <p class="mut small">Etterpå kobler medlemmet kontoene sine med <code>GROCIOUS_PROFILE="Navn"</code> på login-kommandoen.</p>
+        </form>
       </div>
     </details>
   </div>
@@ -55,7 +63,7 @@ try { var th = localStorage.getItem("grocious.theme"); if (th && th !== "auto") 
 </main>
 <footer class="foot">
   <span>Live oversikter caches 5 min · kvitteringsarkiv lagres lokalt</span>
-  <span class="links"><a href="/api/summary">api/summary</a>{% if current_month %} · <a href="/api/export/{{ current_month }}.csv">eksport {{ current_month }}</a>{% endif %}</span>
+  <span class="links"><a href="/api/summary">api/summary</a>{% if current_month %} · <a href="{{ url_for('api_export', ym=current_month, fmt='csv', member=request.args.get('member'), provider=request.args.get('provider')) }}">eksport {{ current_month }}</a>{% endif %}</span>
 </footer>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 <script src="{{ url_for('static', filename='navigation.js') }}"></script>

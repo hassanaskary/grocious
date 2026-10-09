@@ -46,8 +46,8 @@ def coop_metrics(raw):
     }
 
 
-def coop_data():
-    data = Path(os.environ.get("GROCERY_DATA", "/data"))
+def coop_data(data_dir=None):
+    data = Path(data_dir or os.environ.get("GROCERY_DATA", "/data"))
     path = data / "bonus" / "coop.json"
     old = {}
     try:
@@ -57,7 +57,7 @@ def coop_data():
     if not (data / "coop_session.json").exists():
         return {"bonus_error": "Coop session unavailable"}
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    with open(data / "receipts" / "coop" / "sync.lock", "a") as lock:
+    with open(data / "bonus" / "coop.lock", "a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -75,7 +75,7 @@ def coop_data():
                         raise
                     from coop_archive import Client
 
-                    headers = Client().headers
+                    headers = Client(data).headers
             metrics = coop_metrics(raw)
             metrics["bonus_updated_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
             archive.atomic_json(path, {"metrics": metrics, "source": raw})
@@ -119,16 +119,18 @@ def account_rollforward(record, rows, today=None):
             "account_note": note}
 
 
-def account_observation(source):
+def account_observation(source, data_dir=None, rows=None):
     """Optional user-reported snapshot or explicitly configured receipt roll-forward."""
     if source != "coop":
         return {}
-    path = Path(os.environ.get("GROCERY_DATA", "/data")) / "bonus" / "coop-account-observation.json"
+    path = Path(data_dir or os.environ.get("GROCERY_DATA", "/data")) / "bonus" / "coop-account-observation.json"
     try:
         record = json.loads(path.read_text())
         if record.get("mode") == "opening_plus_receipts":
             from coop_receipt_ui import enrich
-            return account_rollforward(record, enrich(archive.summary("coop"))["receipts"])
+
+            source_rows = rows if rows is not None else enrich(archive.summary("coop"))["receipts"]
+            return account_rollforward(record, source_rows)
         return {
             "account_balance": record["balance"],
             "account_available": record["available"],

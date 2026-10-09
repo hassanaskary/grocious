@@ -1,0 +1,271 @@
+openapi: 3.1.0
+info:
+  title: Grocious Agent API
+  version: 1.0.0
+  description: Read-only, archive-backed API for local or trusted agent clients.
+servers:
+  - url: http://127.0.0.1:3012/api/agent/v1
+security:
+  - BearerAuth: []
+paths:
+  /household:
+    get:
+      operationId: getHouseholdStatus
+      summary: Household profiles, archive coverage, and sync status
+      responses:
+        '200':
+          description: Household status snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Disabled'
+  /receipts:
+    get:
+      operationId: listReceipts
+      summary: Search archived receipts in a date interval
+      description: Start date is inclusive; end date is exclusive. Inbox receipts are omitted unless explicitly included.
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema: {type: string, format: date}
+        - name: end_date
+          in: query
+          required: true
+          description: Exclusive end date
+          schema: {type: string, format: date}
+        - name: member_id
+          in: query
+          schema: {type: string}
+        - name: provider
+          in: query
+          schema: {type: string, enum: [coop, rema, trumf]}
+        - name: source
+          in: query
+          description: Archive source; set include_inbox=true to search inbox receipts
+          schema: {type: string, enum: [coop, rema, trumf, inbox]}
+        - name: store
+          in: query
+          description: Case-insensitive substring match
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 200, default: 50}
+        - name: offset
+          in: query
+          schema: {type: integer, minimum: 0, default: 0}
+        - name: include_inbox
+          in: query
+          schema: {type: boolean, default: false}
+        - name: include_lines
+          in: query
+          schema: {type: boolean, default: false}
+      responses:
+        '200':
+          description: Receipt page and pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Disabled'
+  /receipts/{source}/{archive_id}:
+    get:
+      operationId: getReceipt
+      summary: Get one normalized archived receipt
+      parameters:
+        - name: source
+          in: path
+          required: true
+          schema: {type: string, enum: [coop, rema, trumf, inbox]}
+        - name: archive_id
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[a-f0-9]{64}$'}
+      responses:
+        '200':
+          description: Receipt fields, item lines, provenance, and document metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Receipt does not exist or is excluded from spending results
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Disabled'
+  /spending:
+    get:
+      operationId: getSpendingSummary
+      summary: Aggregate receipt totals over a date interval
+      description: Amounts are summed as integer minor units separately by currency. Inbox receipts are omitted unless explicitly included.
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema: {type: string, format: date}
+        - name: end_date
+          in: query
+          required: true
+          description: Exclusive end date
+          schema: {type: string, format: date}
+        - name: member_id
+          in: query
+          schema: {type: string}
+        - name: provider
+          in: query
+          schema: {type: string, enum: [coop, rema, trumf]}
+        - name: source
+          in: query
+          description: Archive source; set include_inbox=true to include inbox receipts
+          schema: {type: string, enum: [coop, rema, trumf, inbox]}
+        - name: group_by
+          in: query
+          schema: {type: string, enum: [total, month, member, provider, store], default: total}
+        - name: include_inbox
+          in: query
+          schema: {type: boolean, default: false}
+      responses:
+        '200':
+          description: Aggregated receipt counts and totals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpendingSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Disabled'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    BadRequest:
+      description: Invalid query or resource
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Disabled:
+      description: Agent HTTP API is disabled until a token is configured
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: {type: string}
+    HouseholdStatus:
+      type: object
+      required: [generated_at, profiles, sources]
+      properties:
+        generated_at: {type: string, format: date-time}
+        profiles:
+          type: array
+          items:
+            type: object
+            required: [id, name, providers]
+            properties:
+              id: {type: string}
+              name: {type: string}
+              providers: {type: array, items: {type: string}}
+        sources:
+          type: object
+          additionalProperties:
+            type: object
+            required: [receipt_count, status, accounts]
+            properties:
+              receipt_count: {type: integer}
+              oldest_date: {type: [string, 'null'], format: date}
+              newest_date: {type: [string, 'null'], format: date}
+              status: {type: string}
+              updated_at: {type: [string, 'null'], format: date-time}
+              accounts: {type: array, items: {type: object}}
+    ReceiptPage:
+      type: object
+      required: [start_date, end_date, count, limit, offset, has_more, receipts]
+      properties:
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        member_id: {type: [string, 'null']}
+        provider: {type: [string, 'null']}
+        source: {type: [string, 'null']}
+        include_inbox: {type: boolean}
+        count: {type: integer, description: Total matching rows before pagination}
+        limit: {type: integer}
+        offset: {type: integer}
+        has_more: {type: boolean}
+        receipts: {type: array, items: {$ref: '#/components/schemas/Receipt'}}
+    Receipt:
+      type: object
+      required: [source, provider, id, archive_id, date, store, amount_minor, currency, profile_id, profile_name]
+      properties:
+        source: {type: string, enum: [coop, rema, trumf, inbox]}
+        provider: {type: [string, 'null']}
+        id: {type: string}
+        archive_id: {type: string}
+        date: {type: [string, 'null'], format: date}
+        time: {type: [string, 'null']}
+        timezone: {type: string}
+        store: {type: [string, 'null']}
+        amount: {type: [number, 'null']}
+        amount_minor: {type: [integer, 'null']}
+        currency: {type: [string, 'null']}
+        bonus: {type: [number, 'null']}
+        discount: {type: [number, 'null']}
+        profile_id: {type: string}
+        profile_name: {type: string}
+        review_state: {type: [string, 'null']}
+        category: {type: [string, 'null']}
+        transaction_category: {type: [string, 'null']}
+        validation: {type: [object, 'null']}
+        documents: {type: array, items: {type: object}}
+        lines: {type: array, items: {type: object}}
+    SpendingSummary:
+      type: object
+      required: [start_date, end_date, group_by, include_inbox, groups]
+      properties:
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        member_id: {type: [string, 'null']}
+        provider: {type: [string, 'null']}
+        source: {type: [string, 'null']}
+        group_by: {type: string}
+        include_inbox: {type: boolean}
+        groups:
+          type: array
+          items:
+            type: object
+            required: [group, receipt_count, known_amount_count, unknown_amount_count, totals_minor, bonus_minor, discount_minor]
+            properties:
+              group: {type: string}
+              receipt_count: {type: integer}
+              known_amount_count: {type: integer}
+              unknown_amount_count: {type: integer}
+              totals_minor: {type: object, additionalProperties: {type: integer}}
+              bonus_minor: {type: object, additionalProperties: {type: integer}}
+              discount_minor: {type: object, additionalProperties: {type: integer}}

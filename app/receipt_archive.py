@@ -18,9 +18,10 @@ def atomic_json(path, value):
     finally:
         if os.path.exists(tmp):os.unlink(tmp)
 
-def key(source, source_id):
+def key(source, source_id, profile_id='default'):
     if source not in SOURCES:raise ValueError('Unknown source')
-    return hashlib.sha256((source+'\0'+str(source_id)).encode()).hexdigest()
+    identity = source+'\0'+str(source_id) if profile_id == 'default' else source+'\0'+profile_id+'\0'+str(source_id)
+    return hashlib.sha256(identity.encode()).hexdigest()
 
 def folder(source, rid):
     if source not in SOURCES or not re.fullmatch('[a-f0-9]{64}',rid):raise ValueError('Invalid receipt ID')
@@ -55,7 +56,7 @@ def quantity(value):
     if not m:return None,None
     return str(Decimal(m[1].replace(',','.'))),m[2] or None
 
-def normalize_coop(head, detail, year, month, pdf_text):
+def normalize_coop(head, detail, year, month, pdf_text, profile_id='default', profile_name='Default'):
     s=detail.get('summary') or {};errors=[]
     display=s.get('dateTime') or head.get('dateTime') or ''
     d=re.match(r'(\d{1,2})\.',display);clock=re.search(r'(\d{2}:\d{2})',display)
@@ -86,7 +87,8 @@ def normalize_coop(head, detail, year, month, pdf_text):
         if m:tax.append({'section':section,'base_minor':minor(m[1]),'rate':m[2],'tax_minor':minor(m[3]),'total_minor':minor(m[4])})
     receipt_number=pdf_date[1] if pdf_date else None
     return {'schema_version':1,'parser_version':'coop-1','chain':'coop','id':head['summaryId'],
-      'archive_id':key('coop',head['summaryId']),'date':date,'time':pdf_date[5] if pdf_date else (clock[1] if clock else None),
+      'archive_id':key('coop',head['summaryId'],profile_id),'profile_id':profile_id,'profile_name':profile_name,
+      'date':date,'time':pdf_date[5] if pdf_date else (clock[1] if clock else None),
       'timezone':'Europe/Oslo','source_datetime':display,'store':s.get('storeName') or head.get('storeName'),
       'currency':'NOK','amount':total/100 if total is not None else None,'amount_minor':total,
       'bonus':amount(s.get('purchaseReturn')),'discount':None,'source_total_discount':s.get('totalDiscount'),
@@ -123,7 +125,7 @@ def rebuild(source):
     records=[]
     for p in (root()/source).glob('*/receipt.json'):
         r=read_receipt(source,p.parent.name)
-        records.append({k:r.get(k) for k in ('archive_id','id','date','time','store','amount','bonus','discount','receipt_id','validation','documents','amount_minor','currency','category','chain','review','intake','linked_to','payment')})
+        records.append({k:r.get(k) for k in ('archive_id','id','date','time','store','amount','bonus','discount','receipt_id','validation','documents','amount_minor','currency','category','chain','review','intake','linked_to','payment','profile_id','profile_name')})
     records.sort(key=lambda x:(x['date'] or '',x['time'] or '',x['id']),reverse=True)
     atomic_json(root()/source/'index.json',{'ok':True,'count':len(records),'receipts':records})
     return len(records)

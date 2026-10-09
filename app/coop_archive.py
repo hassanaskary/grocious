@@ -4,13 +4,27 @@ import argparse, base64, datetime as dt, fcntl, hashlib, json, os, subprocess, t
 import urllib.request, urllib.parse, urllib.error
 from pathlib import Path
 import receipt_archive as archive
+import profiles
+
+def household_status():
+    rows=[]
+    for account in profiles.connected_profiles():
+        if 'coop' not in account['providers']:continue
+        path=archive.root()/'sync'/account['id']/'coop'/'status.json'
+        try:status=json.loads(path.read_text())
+        except (OSError,ValueError):status={'state':'not_started'}
+        rows.append({'profile_id':account['id'],'profile_name':account['name'],**status})
+    states=[x['state'] for x in rows]
+    state='complete' if states and all(x=='complete' for x in states) else 'partial' if any(x in ('complete','partial','sample') for x in states) else 'not_started'
+    archive.atomic_json(archive.root()/'coop'/'status.json',{'state':state,'profiles':rows,'updated_at':dt.datetime.now(dt.timezone.utc).isoformat()})
 
 API='https://coopay.coop.no/user/pay/history/'
 DATA=Path(os.environ.get('GROCERY_DATA','/data'))
 
 class Client:
-    def __init__(self):
-        self.session=DATA/'coop_session.json';self.tokens=DATA/'coop_tokens.json'
+    def __init__(self,data_dir=None):
+        data_dir=Path(data_dir or DATA)
+        self.session=data_dir/'coop_session.json';self.tokens=data_dir/'coop_tokens.json'
         self.headers=json.loads(self.session.read_text())['headers']
         self.headers={k:v for k,v in self.headers.items() if k.lower() not in ('host','accept-encoding','content-length')}
         self.refresh()
@@ -42,9 +56,10 @@ class Client:
             time.sleep(2**attempt)
 
 
-def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--limit',type=int);parser.add_argument('--incremental',action='store_true');args=parser.parse_args()
-    os.umask(0o077);base=archive.root()/'coop';base.mkdir(parents=True,exist_ok=True,mode=0o700)
+def sync(profile,limit=None,incremental=False):
+    data_dir=profiles.data_dir(profile)
+    base=archive.root()/'sync'/profile['id']/'coop';base.mkdir(parents=True,exist_ok=True,mode=0o700)
+    receipts=archive.root()/'coop';receipts.mkdir(parents=True,exist_ok=True,mode=0o700)
     lock=open(base/'sync.lock','w')
     try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     except BlockingIOError:print('Coop sync already running');return
@@ -52,15 +67,15 @@ def main():
     state={'state':'running','started_at':dt.datetime.now(dt.timezone.utc).isoformat(),'errors':[]}
     archive.atomic_json(base/'status.json',state)
     try:
-        client=Client()
+        client=Client(data_dir)
         if previous.get('account_fingerprint') not in (None,client.account):raise RuntimeError('Different Coop account; separate archive required')
         state['account_fingerprint']=client.account
         raw,_=client.get('dashboard');dash=json.loads(raw)
         archive.original(base/'periods','dashboard',raw,'json','application/json')
         first=dash['oldestPeriod'];last=dash['currentPeriod']
         start=first['year']*12+first['month']-1;end=last['year']*12+last['month']-1
-        if args.incremental:start=max(start,end-1)
-        state.update({'source_oldest_period':first,'source_current_period':last,'mode':'incremental' if args.incremental else 'full'})
+        if incremental:start=max(start,end-1)
+        state.update({'source_oldest_period':first,'source_current_period':last,'mode':'incremental' if incremental else 'full'})
         heads={};periods={}
         for ordinal in range(end,start-1,-1):
             y,m=divmod(ordinal,12);m+=1
@@ -80,16 +95,16 @@ def main():
             time.sleep(.1)
         manifest={'periods':periods,'discovered':len(heads),'captured_at':dt.datetime.now(dt.timezone.utc).isoformat()}
         archive.atomic_json(base/'manifest.json',manifest)
-        if not args.incremental and args.limit is None:archive.atomic_json(base/'full_manifest.json',manifest)
+        if not incremental and limit is None:archive.atomic_json(base/'full_manifest.json',manifest)
         state['discovered']=len(heads);state['processed']=0;archive.atomic_json(base/'status.json',state)
         print('Discovered',len(heads),'receipts in',len(periods),'months',flush=True)
         for sid,(head,year,month) in heads.items():
-            if args.limit is not None and state['processed']>=args.limit:break
-            rid=archive.key('coop',sid);directory=archive.folder('coop',rid)
+            if limit is not None and state['processed']>=limit:break
+            rid=archive.key('coop',sid,profile['id']);directory=archive.folder('coop',rid)
             try:
                 existing=directory/'receipt.json'
                 # Full backfills resume from verified complete artifacts. Daily overlap refreshes details.
-                if existing.exists() and not args.incremental:
+                if existing.exists() and not incremental:
                     old=json.loads(existing.read_text())
                     if old.get('archive_complete') and old.get('parser_version')=='coop-1':
                         for doc in old['documents']:archive.document('coop',rid,doc['filename'])
@@ -106,7 +121,7 @@ def main():
                     if result.returncode:raise RuntimeError('PDF text extraction failed')
                     text=result.stdout.decode('utf-8',errors='replace')
                     docs.append(archive.original(directory,'text',result.stdout,'txt','text/plain; charset=utf-8'))
-                record=archive.normalize_coop(head,details,year,month,text)
+                record=archive.normalize_coop(head,details,year,month,text,profile['id'],profile['name'])
                 record['documents']=docs;record['archive_complete']=pdf_present
                 if not pdf_present:record['validation']['issues'].append('source_pdf_missing')
                 archive.atomic_json(directory/'receipt.json',record)
@@ -118,22 +133,44 @@ def main():
                 print('Archived',state['processed'],'/',len(heads),'errors',len(state['errors']),flush=True)
             time.sleep(.1)
         state['archived_count']=archive.rebuild('coop')
-        records=[json.loads(p.read_text()) for p in base.glob('*/receipt.json')]
+        records=[json.loads(p.read_text()) for p in receipts.glob('*/receipt.json') if (json.loads(p.read_text()).get('profile_id') or 'default')==profile['id']]
         state['original_pdf_count']=sum(r.get('archive_complete',False) for r in records)
         state['validation_issue_count']=sum(bool(r.get('validation',{}).get('issues')) for r in records)
         dates=sorted(r['date'] for r in records if r.get('date'))
         state['oldest_date']=dates[0] if dates else None;state['newest_date']=dates[-1] if dates else None
-        state['state']='sample' if args.limit is not None else ('complete' if not state['errors'] and state['processed']==len(heads) and all(archive.read_receipt('coop',archive.key('coop',sid)).get('archive_complete') for sid in heads) else 'partial')
+        state['state']='sample' if limit is not None else ('complete' if not state['errors'] and state['processed']==len(heads) and all(archive.read_receipt('coop',archive.key('coop',sid,profile['id'])).get('archive_complete') for sid in heads) else 'partial')
         state['finished_at']=dt.datetime.now(dt.timezone.utc).isoformat()
-        if state['state']=='complete' and not args.incremental:
+        if state['state']=='complete' and not incremental:
             archive.atomic_json(base/'full_sync.json',{k:v for k,v in state.items() if k!='account_fingerprint'})
         full=base/'full_sync.json'
         if full.exists():state['last_full_sync']=json.loads(full.read_text())
         archive.atomic_json(base/'status.json',state)
+        household_status()
         print(json.dumps({k:v for k,v in state.items() if k not in ('errors','account_fingerprint')},ensure_ascii=False),flush=True)
         if state['state']=='partial':raise RuntimeError('Coop sync incomplete; inspect status.json')
     except Exception as e:
         state['state']='failed';state['errors'].append({'error':str(e) if isinstance(e,RuntimeError) else type(e).__name__})
-        archive.rebuild('coop');archive.atomic_json(base/'status.json',state);raise
+        archive.rebuild('coop');archive.atomic_json(base/'status.json',state);household_status();raise
+
+def main():
+    parser=argparse.ArgumentParser();parser.add_argument('--limit',type=int);parser.add_argument('--incremental',action='store_true');parser.add_argument('--profile');args=parser.parse_args()
+    os.umask(0o077)
+    accounts=profiles.connected_profiles()
+    if args.profile:
+        selected=profiles.by_name(args.profile)
+        if not selected:raise SystemExit('Unknown profile: '+args.profile)
+        accounts=[selected]
+    accounts=[x for x in accounts if 'coop' in x.get('providers',[])]
+    if not accounts:raise SystemExit('No Coop login configured; run the login container first.')
+    failed=[]
+    for account in accounts:
+        incremental=args.incremental
+        if incremental:
+            try:previous=json.loads((archive.root()/'sync'/account['id']/'coop'/'status.json').read_text())
+            except (OSError,ValueError):previous={}
+            if previous.get('state')!='complete':incremental=False
+        try:sync(account,args.limit,incremental)
+        except Exception as error:failed.append((account['name'],str(error)))
+    if failed:raise SystemExit('; '.join(name+': '+error for name,error in failed))
 
 if __name__=='__main__':main()

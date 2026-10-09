@@ -1,6 +1,11 @@
 import asyncio, os, json, secrets, hashlib, base64, urllib.parse
+from getpass import getpass
 from playwright.async_api import async_playwright
-USER=os.environ["COOP_USER"]; PW=os.environ["COOP_PASSWORD"]; SMS="/data/coop_sms.txt"
+from common import profile_dir
+DATA=profile_dir()
+USE_ENV=os.environ.get("GROCIOUS_PROFILE", "Default").casefold()=="default" or os.environ.get("GROCIOUS_USE_ENV_CREDENTIALS")=="1"
+USER=(os.environ.get("COOP_USER") if USE_ENV else None) or input("Coop username: ").strip()
+PW=(os.environ.get("COOP_PASSWORD") if USE_ENV else None) or getpass("Coop password: ")
 CID="7WrQEdeXwUudArpQVjmZEvrTgVs1WkRr"; REDIR="https://login.coop.no/android/no.coop.members/callback"
 caps={"code":None}
 def pkce():
@@ -44,15 +49,8 @@ async def main():
         if await pg.query_selector('input[name="password"]:visible'): await click_any(pg,["Logg inn","Fortsett"])
         await pg.wait_for_timeout(4000)
         if ("mfa" in pg.url.lower()) or ("challenge" in pg.url.lower()) or (await pg.query_selector('input[name="code"]')):
-            print("MFA_SMS_SENT — waiting for code file /data/coop_sms.txt (6 min)...",flush=True)
-            code=None
-            for _ in range(120):
-                if os.path.exists(SMS):
-                    x=open(SMS).read().strip()
-                    if x: code=x; break
-                await asyncio.sleep(3)
+            code=input("SMS code: ").strip()
             if code:
-                print("GOT_CODE, entering...",flush=True)
                 cb=await pg.query_selector('input[name="code"]') or await pg.query_selector('input[inputmode="numeric"]') or await pg.query_selector('input[type="text"]:visible')
                 await cb.fill(code)
                 try: await cb.press("Enter")
@@ -72,7 +70,9 @@ async def main():
             tj=await tok.json()
             print("TOKEN_STATUS:", tok.status, "KEYS:", list(tj.keys()) if isinstance(tj,dict) else tj)
             if "access_token" in tj:
-                open("/data/coop_tokens.json","w").write(json.dumps(tj))
+                open(DATA/"coop_tokens.json","w").write(json.dumps(tj))
+                headers={"x-token":tj["access_token"],"User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36","Accept":"application/json"}
+                open(DATA/"coop_session.json","w").write(json.dumps({"headers":headers}))
                 print("SUCCESS: coop tokens saved | refresh:", "refresh_token" in tj, "expires_in:", tj.get("expires_in"))
         await b.close()
 asyncio.run(main())

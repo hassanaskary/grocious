@@ -5,24 +5,27 @@ from pathlib import Path
 from urllib.parse import urlencode
 from playwright.async_api import async_playwright
 import receipt_archive as a
+import profiles
 
-async def main():
+async def main(profile):
     os.umask(0o077);base=a.root()/'trumf';base.mkdir(parents=True,exist_ok=True,mode=0o700)
-    with open(base/'sync.lock','w') as lock:
+    sync_dir=a.root()/'sync'/profile['id']/'trumf';sync_dir.mkdir(parents=True,exist_ok=True,mode=0o700)
+    images_status=sync_dir/'images_status.json'
+    with open(sync_dir/'images.lock','w') as lock:
         try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:raise RuntimeError('Trumf raw sync is still running')
-        records=[json.loads(p.read_text()) for p in base.glob('*/receipt.json')]
+        records=[json.loads(p.read_text()) for p in base.glob('*/receipt.json') if (json.loads(p.read_text()).get('profile_id') or 'default')==profile['id']]
         eligible=[r for r in records if r['source']['head'].get('harKvittering')]
         pending=[r for r in eligible if r.get('images_need_refresh') or not any(d['role']=='original' for d in r['documents'])]
         for r in eligible:
             for d in r['documents']:
                 if d['role']=='original':a.document('trumf',r['archive_id'],d['filename'])
         state={'state':'running','expected':len(eligible),'already_archived':len(eligible)-len(pending),'downloaded':0,'errors':[],'started_at':dt.datetime.now(dt.timezone.utc).isoformat()}
-        a.atomic_json(base/'images_status.json',state);print('Trumf supplier images pending',len(pending),flush=True)
+        a.atomic_json(images_status,state);print('Trumf supplier images pending',profile['name'],len(pending),flush=True)
         if pending:
             async with async_playwright() as p:
                 browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
-                ctx=await browser.new_context(storage_state=str(Path(os.environ.get('GROCERY_DATA','/data'))/'trumf_state.json'),accept_downloads=True,locale='nb-NO')
+                ctx=await browser.new_context(storage_state=str(profiles.data_dir(profile)/'trumf_state.json'),accept_downloads=True,locale='nb-NO')
                 # Set necessary-only cookie preference once in this disposable context.
                 page=await ctx.new_page();await page.goto('https://www.trumf.no/profil/kvitteringer',wait_until='domcontentloaded',timeout=60000)
                 consent=page.get_by_role('button',name='Kun nødvendige',exact=True)
@@ -52,13 +55,26 @@ async def main():
                             doc.update(supplier_filename=download.suggested_filename,provenance='Trumf website downloadReceipt button',captured_at=dt.datetime.now(dt.timezone.utc).isoformat())
                             r['documents']=[d for d in r['documents'] if d['filename']!=doc['filename']]+[doc];r['images_need_refresh']=False;r['original_status']='supplier_image';a.atomic_json(directory/'receipt.json',r);state['downloaded']+=1
                         except Exception as e:state['errors'].append({'id':sid,'error':str(e) if isinstance(e,RuntimeError) else type(e).__name__})
-                        a.atomic_json(base/'images_status.json',state)
+                        a.atomic_json(images_status,state)
                         if (state['downloaded']+len(state['errors']))%10==0:
                             a.rebuild('trumf');print('Supplier JPGs',state['downloaded'],'errors',len(state['errors']),flush=True)
                         await asyncio.sleep(.3)
                     await page.close()
                 await asyncio.gather(worker(),worker());await browser.close()
-        a.rebuild('trumf');state['state']='complete' if not state['errors'] else 'partial';state['archived_images']=state['already_archived']+state['downloaded'];state['finished_at']=dt.datetime.now(dt.timezone.utc).isoformat();a.atomic_json(base/'images_status.json',state);print(json.dumps(state),flush=True)
+        a.rebuild('trumf');state['state']='complete' if not state['errors'] else 'partial';state['archived_images']=state['already_archived']+state['downloaded'];state['finished_at']=dt.datetime.now(dt.timezone.utc).isoformat();a.atomic_json(images_status,state);print(profile['name'],json.dumps(state),flush=True)
         if state['errors']:raise RuntimeError('Some Trumf images were not retrieved; see images_status.json')
 
-if __name__=='__main__':asyncio.run(main())
+if __name__=='__main__':
+    accounts=[p for p in profiles.connected_profiles() if 'trumf' in p['providers']]
+    failures=[]
+    for account in accounts:
+        try:asyncio.run(main(account))
+        except Exception as error:failures.append(account['name']+': '+str(error))
+    statuses=[]
+    for account in accounts:
+        try:status=json.loads((a.root()/'sync'/account['id']/'trumf'/'images_status.json').read_text())
+        except (OSError,ValueError):status={'state':'not_started'}
+        statuses.append({'profile_id':account['id'],'profile_name':account['name'],**status})
+    state='complete' if statuses and all(x['state']=='complete' for x in statuses) else 'partial' if statuses else 'not_started'
+    a.atomic_json(a.root()/'trumf'/'images_status.json',{'state':state,'profiles':statuses,'updated_at':dt.datetime.now(dt.timezone.utc).isoformat()})
+    if failures:raise SystemExit('; '.join(failures))

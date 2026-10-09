@@ -4,8 +4,10 @@ receipts and campaign offers via the (browser-free) BFF token. Playwright only
 needed for the periodic re-login (login.py), not here."""
 import json, os, sys, datetime, urllib.request, urllib.parse
 import requests
+import profiles
 
-STATE = os.environ.get("TRUMF_STATE", "/data/trumf_state.json")
+profile = profiles.by_name(os.environ.get("GROCIOUS_PROFILE", "Default"))
+STATE = os.environ.get("TRUMF_STATE") or str((profiles.data_dir(profile) if profile else profiles.root()) / "trumf_state.json")
 NTFY  = os.environ.get("NTFY_URL")           # e.g. https://ntfy.sh/<topic> (optional)
 API   = "https://platform-rest-prod.ngdata.no"
 

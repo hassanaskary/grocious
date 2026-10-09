@@ -71,11 +71,12 @@ def cards(source, rows):
     return result
 
 
-def coop_data():
+def coop_data(data_dir=None):
     try:
-        headers = json.loads((Path(os.environ.get("GROCERY_DATA", "/data")) / "coop_session.json").read_text())[
-            "headers"
-        ]
+        session = json.loads(
+            (Path(data_dir or os.environ.get("GROCERY_DATA", "/data")) / "coop_session.json").read_text()
+        )
+        headers = session["headers"]
         response = requests.get("https://cdcapp.coop.no/coupon/all", headers=headers, timeout=20)
         response.raise_for_status()
         raw = response.json()

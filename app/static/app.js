@@ -172,9 +172,9 @@
   refreshReceiptFilters();
   var allRows = items.concat(otherRows);
   fetch("/api/bookkeeping").then(function (r) { if (!r.ok) throw new Error("Kunne ikke hente registreringsstatus"); return r.json(); }).then(function (records) {
-    var mapping = new Map(records.map(function (r) { return [r.source + "/" + r.id, r]; }));
+    var mapping = new Map(records.map(function (r) { return [r.source + "/" + (r.profile_id || "default") + "/" + r.id, r]; }));
     allRows.forEach(function (row) {
-      var record = mapping.get(row.dataset.source + "/" + row.dataset.id);
+      var record = mapping.get(row.dataset.source + "/" + (row.dataset.profile || "default") + "/" + row.dataset.id);
       var box = document.createElement("div"); box.className = "registration-controls";
       row.querySelector(".body").appendChild(box);
       if (!record) { row.dataset.registration = "unregistered"; box.textContent = "Bilaget må være i arkivet før det kan merkes registrert."; return; }
@@ -239,6 +239,35 @@
     hiddenOffers = []; try { localStorage.removeItem(offerKey); } catch (e) {} showOffers();
   });
   showOffers();
+
+  var profileForm = document.getElementById("profile-create");
+  if (profileForm) profileForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    var input = document.getElementById("profile-name"), status = document.getElementById("profile-status");
+    status.textContent = "Lagrer …";
+    try {
+      var response = await fetch("/api/profiles", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:input.value})});
+      var body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Kunne ikke legge til medlem.");
+      status.textContent = body.name + " er lagt til. Koble til kontoer med login-kommandoen i hjelpeteksten.";
+      input.value = "";
+      setTimeout(function () { location.reload(); }, 900);
+    } catch (error) { status.textContent = error.message; }
+  });
+  document.querySelectorAll(".profile-rename").forEach(function (button) {
+    button.addEventListener("click", async function () {
+      var id = button.dataset.profileId, input = document.querySelector('.member-name[data-profile-id="' + id + '"]');
+      var status = document.getElementById("profile-status");
+      status.textContent = "Lagrer navn …";
+      try {
+        var response = await fetch("/api/profiles/" + encodeURIComponent(id), {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:input.value})});
+        var body = await response.json();
+        if (!response.ok) throw new Error(body.error || "Kunne ikke endre navn.");
+        status.textContent = "Navnet er lagret.";
+        setTimeout(function () { location.reload(); }, 700);
+      } catch (error) { status.textContent = error.message; }
+    });
+  });
 
   // ---- expandable line items -------------------------------------------
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }

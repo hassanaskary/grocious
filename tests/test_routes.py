@@ -64,11 +64,30 @@ def test_new_theme_file_is_picked_up(client, tmp_path, monkeypatch):
 
 def test_api_summary_shape_unchanged(client):
     d = client.get("/api/summary").get_json()
-    assert set(d) == {"trumf", "rema", "coop", "inbox"}
+    assert set(d) == {"trumf", "rema", "coop", "inbox", "profiles"}
+    assert d["profiles"][0]["name"] == "Demo"
     assert d["trumf"]["ok"] and set(d["trumf"]) >= {"saldo", "akkumulert", "oppdatert", "count", "receipts", "offers"}
-    assert set(d["trumf"]["receipts"][0]) == {"id", "date", "store", "amount", "bonus", "chain", "hasReceipt"}
+    assert set(d["trumf"]["receipts"][0]) == {
+        "id",
+        "date",
+        "store",
+        "amount",
+        "bonus",
+        "chain",
+        "hasReceipt",
+        "profile_id",
+        "profile_name",
+    }
     assert set(d["rema"]) >= {"purchaseTotal", "discountTotal", "count", "receipts", "offers"}
-    assert set(d["rema"]["receipts"][0]) == {"id", "date", "store", "amount", "discount"}
+    assert set(d["rema"]["receipts"][0]) == {
+        "id",
+        "date",
+        "store",
+        "amount",
+        "discount",
+        "profile_id",
+        "profile_name",
+    }
     assert set(d["rema"]["offers"][0]) == {"code", "desc", "activated", "img"}
 
 
@@ -90,6 +109,9 @@ def test_api_export_json_and_csv(client):
         "currency",
         "bonus",
         "discount",
+        "archive_id",
+        "profile_id",
+        "profile_name",
     }
     with_lines = client.get("/api/export/2026-06.json?lines=1").get_json()
     assert all("lines" in x for x in with_lines["receipts"] if x["chain"] == "rema")

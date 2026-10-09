@@ -1,6 +1,9 @@
 import asyncio, os, json, secrets, hashlib, base64, urllib.parse
 from playwright.async_api import async_playwright
-PHONE=os.environ["REMA_PHONE"]; SMS="/data/rema_sms.txt"
+from common import profile_dir
+DATA=profile_dir()
+USE_ENV=os.environ.get("GROCIOUS_PROFILE", "Default").casefold()=="default" or os.environ.get("GROCIOUS_USE_ENV_CREDENTIALS")=="1"
+PHONE=(os.environ.get("REMA_PHONE") if USE_ENV else None) or input("Rema phone: ").strip()
 caps={"code":None}
 def pkce():
     v=base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b'=').decode()
@@ -34,20 +37,12 @@ async def main():
         print("CLICKED:", clicked, flush=True)
         await pg.wait_for_timeout(5000)
         try:
-            await pg.screenshot(path="/data/rema_login_page.png", full_page=True)
+            await pg.screenshot(path=str(DATA/"rema_login_page.png"), full_page=True)
             body=await pg.evaluate("document.body.innerText")
             print("PAGE_TEXT:", " | ".join([l for l in body.splitlines() if l.strip()][:14]), flush=True)
         except Exception as e:
             print("DEBUG_DUMP_FAIL:", e, flush=True)
-        print("SMS_SENT — waiting for code file (up to 6 min)...", flush=True)
-        code=None
-        for _ in range(120):
-            if os.path.exists(SMS):
-                x=open(SMS).read().strip()
-                if x: code=x; break
-            await asyncio.sleep(3)
-        if not code: print("NO_CODE_TIMEOUT"); await b.close(); return
-        print("GOT_CODE, entering...", flush=True)
+        code=input("SMS code: ").strip()
         boxes=await pg.query_selector_all('input[autocomplete="one-time-code"], input[inputmode="numeric"], input[type="tel"]:not([name="phoneNumber"]), input[name*="code" i], input[name*="otp" i]')
         if len(boxes)==1: await boxes[0].fill(code)
         elif len(boxes)>=len(code):
@@ -74,7 +69,8 @@ async def main():
         tj=await tok.json()
         print("TOKEN_STATUS:", tok.status, "KEYS:", list(tj.keys()) if isinstance(tj,dict) else tj)
         if "access_token" in tj:
-            open("/data/rema_tokens.json","w").write(json.dumps(tj))
+            open(DATA/"rema_tokens.json","w").write(json.dumps(tj))
+            open(DATA/"rema_phone.json","w").write(json.dumps({"phone": PHONE}))
             print("SUCCESS: rema tokens saved | has_refresh:", "refresh_token" in tj, "expires_in:", tj.get("expires_in"))
         await b.close()
 asyncio.run(main())

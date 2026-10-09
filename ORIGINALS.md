@@ -1,6 +1,6 @@
 # Kvitteringsoriginaler — 2026-09-06
 
-Privat arkiv: `${GROCIOUS_HOME}/data/receipts/{coop,trumf,rema}`. SHA-256-navngitte originalfiler overskrives aldri; receipt.json og index.json skrives atomisk. Ukjente kildefelter bevares. Passord og autentiseringsheadere arkiveres ikke sammen med kvitteringene.
+Privat husholdningsarkiv: `${GROCIOUS_HOME}/data/receipts/{coop,trumf,rema}`. Alle tilknyttede medlemskontoer importeres til det samme arkivet; standardvisningen summerer husholdningen, med filtre per medlem og leverandør. Hver kvittering beholder opplysninger om hvilken medlemskonto som leverte den. SHA-256-navngitte originalfiler overskrives aldri; receipt.json og index.json skrives atomisk. Ukjente kildefelter bevares. Passord og autentiseringsheadere arkiveres ikke sammen med kvitteringene.
 
 ## Verifiserte kilder
 
@@ -12,16 +12,16 @@ Supplerende undersøkelseskilde: [Helge Sverres dekompilerte Rema-API-beskrivels
 
 ## Grocious
 
-`/archive/trumf` og `/archive/rema` viser arkivet uavhengig av live innlogging. Hvert kjøp har full JSON, alle originalfiler som ZIP, og individuelle råfiler/bilder. `/api/archive/{source}` gir indeks og jobbstatus, inklusive Trumf-bildejobb når tilgjengelig. Gamle JSON/CSV/PDF-ruter er beholdt; den forenklede PDF-en kalles nå «laget PDF».
+`/archive/trumf` og `/archive/rema` viser arkivet uavhengig av live innlogging. Hvert kjøp har full JSON, alle originalfiler som ZIP, og individuelle råfiler/bilder. Kvitteringsnøkkelen er avgrenset til medlemskontoen som importerte den; eksisterende nøkler for Default-kontoen beholdes. `/api/archive/{source}` gir indeks og jobbstatus, inklusive Trumf-bildejobb når tilgjengelig. `/api/profiles` viser husholdningsmedlemmene og tilknyttede leverandører. Månedseksporten støtter `member`- og `provider`-filtre; uten filter tas hele husholdningen med.
 
 ## Drift
 
-`app/provider_archive.py {rema,trumf}` henter hele tilgjengelige listen, lagrer manglende detaljer og kan gjenopptas. `--incremental` oppdaterer de siste 60 dagene og kjøp der oversiktsdata har endret seg. `app/trumf_images.py` henter manglende leverandørbilder med to nettleserfaner, kontrollerer kvitteringsnummer i filnavnet og JPEG-format, og bevarer gamle versjoner. Endrede rådata markerer bildet for ny innhenting.
+`app/provider_archive.py {rema,trumf}` og `app/coop_archive.py` behandler alle medlemskontoer som har innlogging for leverandøren. Første kjøring gjør full import per konto; senere `--incremental`-kjøringer oppdaterer de siste 60 dagene og kjøp der oversiktsdata har endret seg. Status lagres per konto under `data/sync/<profile-id>/<provider>/` og aggregeres også per leverandør. `app/trumf_images.py` henter manglende leverandørbilder med to nettleserfaner, kontrollerer kvitteringsnummer i filnavnet og JPEG-format, og bevarer gamle versjoner. Endrede rådata markerer bildet for ny innhenting.
 
 Trumfs direkte detaljside trenger `transactionType`, `timestamp` og `description` fra den virkelige oversiktslenken. Bare batch-ID ga «Kunne ikke finne transaksjonsdetaljer», selv om purchaseDetails lå i råsvaret. Nettleserens native nedlastingsknapp virker med de observerte parameterne. Ingen lokal tegning av en erstatningskvittering brukes.
 
-Systemd-brukertimer `grocious-provider-archive.timer` kjører daglig ca. 07:15–07:30 Europe/Oslo, via `app/sync_provider_archives.sh`. Gjenbruker grocery-web/grocery-login og eksisterende innlogging, ingen nye lyttere. Feilstatus ligger per kilde i status.json og images_status.json; journalen viser jobbutfall. En kildefeil stopper ikke forsøk på den andre kilden. Ingen automatisk ekstern melding er lagt til.
+Systemd-brukertimer `grocious-provider-archive.timer` kjører daglig ca. 07:15–07:30 Europe/Oslo, via `app/sync_provider_archives.sh`. Gjenbruker grocery-web/grocery-login og eksisterende innlogging, ingen nye lyttere. Feilstatus ligger per konto og kilde i sync-statusen; samlet status vises per kilde, mens journalen viser jobbutfall. En kildefeil stopper ikke forsøk på de andre kildene. Ingen automatisk ekstern melding er lagt til.
 
-Ta backup av `${GROCIOUS_HOME}/data/receipts` med ønsket backupverktøy, og test gjenoppretting. Restore til separat mappe og kontroller SHA-256 mot receipt.json før bruk; indeks kan gjenoppbygges med receipt_archive.rebuild(source).
+Ta backup av hele `${GROCIOUS_HOME}/data` for å bevare både kvitteringsarkivet, medlemsregisteret og innloggingene, og test gjenoppretting. Restore til separat mappe og kontroller SHA-256 mot receipt.json før bruk; indeks kan gjenoppbygges med receipt_archive.rebuild(source).
 
-Tidligere manuelt importerte filer og eksisterende Trumf/Rema-liveflyt er beholdt. Tidligere endringer i login/rema_login.py er ikke berørt.
+Eksisterende `data/` blir Default-medlemmets innloggingsområde. Nye medlemmers økter og Rema-metadata ligger under `data/profiles/<profile-id>/`; medlemsregisteret er `data/profiles.json`. Tidligere manuelt importerte filer forblir i husholdningsarkivet. Å koble fra en konto fjerner ikke allerede importerte kvitteringer.

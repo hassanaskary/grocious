@@ -34,7 +34,7 @@ Two runtimes, on purpose:
 - **`login/`** — the only part that needs a browser. Playwright drives the real login flow
   once (roughly yearly): Trumf's NextAuth → `id.trumf.no` IdentityServer (OAuth2 + PKCE,
   `offline_access`) including the SMS OTP step, Rema's passwordless SMS flow, and Coop's
-  Auth0 flow with MFA. The resulting session state lands in `data/*_state.json`.
+  Auth0 flow with MFA. Sessions are stored under the selected household member.
 - **`app/`** — browser-free runtime. `trumf_client.py`, `rema_client.py` and the Coop
   modules read the stored session, exchange it for a bearer token and call the chains'
   own endpoints for balances, transactions and offers. This is what runs day to day;
@@ -43,6 +43,38 @@ Two runtimes, on purpose:
 The session cookie is long-lived and refreshed server-side, so re-running the login is an
 exception, not a routine.
 
+## Household profiles
+
+Add household members and rename them from **Settings → Household**. Each member can connect their own
+Trumf, Rema, and Coop logins. Receipt imports go into one shared household archive; the dashboard,
+statistics, and monthly exports aggregate all members and providers by default. Use the member and
+provider filters above the receipt list to see one member, one provider, or both together. Each
+receipt keeps the member and provider that supplied it, so its account provenance remains visible.
+Because checkout uses one loyalty account, each store receipt is imported through the account
+that was scanned and contributes once to the household total.
+
+Run the login command for each member and provider. Non-default members are prompted for
+their credentials and the one-time SMS code, even when the `.env` contains the Default
+member's values. Passwords are not saved. For example:
+
+```bash
+docker compose --profile login run --rm -e GROCIOUS_PROFILE="Partner" trumf-login
+docker compose --profile login run --rm -e GROCIOUS_PROFILE="Partner" rema-login
+docker compose --profile login run --rm -e GROCIOUS_PROFILE="Partner" coop-login
+```
+
+Then fetch receipts for all connected member/provider accounts:
+
+```bash
+app/sync_provider_archives.sh
+```
+
+The existing data directory is kept in place as the initial **Default** member. New member
+sessions and Rema phone metadata live under `data/profiles/<profile-id>/`; receipt originals and
+household exports remain in the shared archive. The profile registry is `data/profiles.json`.
+Removing or disconnecting a login does not remove receipts already imported. Each provider account
+imports the purchases visible to that account; receipts retain the account that supplied them.
+
 ## The receipt archive
 
 The part that matters if you care about your own records. Every purchase gets its own
@@ -50,26 +82,32 @@ folder under `data/receipts/<source>/<archive_id>/`:
 
 - **Originals are never modified or deleted.** Files are named by their SHA-256 and
   written once; a changed original becomes a new file next to the old one.
-- **`archive_id`** is a stable receipt key — SHA-256 of the chain name plus the chain's own
-  receipt id — so the same purchase always resolves to the same folder. Re-running a fetch
-  is idempotent.
+- **`archive_id`** is a stable receipt key. It uses the provider and provider receipt id, scoped
+  to the supplying member account, so re-running a fetch is idempotent and the receipt retains
+  its account provenance. Existing Default-member archive IDs remain compatible.
 - **`receipt.json`** holds normalised fields next to the untouched `source` payload. Unknown
   vendor fields are preserved rather than dropped, and `documents[]` lists every stored file
   with its `role`, `filename`, `sha256`, `bytes` and `mimetype`.
 - Vendor-produced images are labelled as such. A PDF that grocious renders itself is a
   *derived view*, never presented as the store's original.
 
-Archive jobs run per source (`app/provider_archive.py {rema,trumf}`, `app/coop_archive.py`),
-support `--incremental` for the recent window, and can be resumed. `app/sync_provider_archives.sh`
-wraps them for a scheduled run.
+Archive jobs run for every connected account (`app/provider_archive.py {rema,trumf}`,
+`app/coop_archive.py`), support `--incremental` for the recent window after an account's initial
+backfill, and can be resumed. The first sync for an account backfills its available history.
+`app/sync_provider_archives.sh` wraps the jobs for a scheduled run.
 
 ## HTTP API
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/summary` | Dashboard data per chain plus inbox status |
-| `GET /api/export/<YYYY-MM>.json` | Monthly receipts, including pending/confirmed inbox records; linked/discarded inbox records excluded. Add `?lines=1` for item lines |
-| `GET /api/export/<YYYY-MM>.csv` | Same as CSV — one row per receipt, or per item with `?lines=1` |
+| `GET /api/summary` | Dashboard data per chain, inbox status, and household profiles |
+| `GET /api/profiles` | Household members and the providers connected to each |
+| `GET /api/export/<YYYY-MM>.json` | Monthly household receipts, including pending/confirmed inbox records; linked/discarded inbox records excluded. Add `?member=<profile-id>` or `?provider=<chain>` to filter, and `?lines=1` for item lines |
+| `GET /api/export/<YYYY-MM>.csv` | Same data as CSV — one row per receipt, or per item with `?lines=1`; accepts the same member/provider filters |
+| `GET /api/agent/v1/household` | Opt-in, token-protected profile, archive coverage, and sync status |
+| `GET /api/agent/v1/receipts` | Date-bounded, paginated receipt search; supports member, provider, archive source, store, inbox, and line filters |
+| `GET /api/agent/v1/receipts/<source>/<archive_id>` | One normalized archived receipt with line items and provenance |
+| `GET /api/agent/v1/spending` | Date-bounded sums grouped by household, month, member, provider, or store; totals remain separate by currency |
 | `GET /api/archive/<source>` | Archive index: count, `archive_id`s, `documents[]` with checksums |
 | `GET /archive/<source>` | Browsable archive, independent of a live login |
 | `GET /archive/<source>/<rid>` | One purchase: normalised view plus raw JSON |
@@ -78,6 +116,54 @@ wraps them for a scheduled run.
 
 Line items are cached on disk under `GROCERY_DATA/cache/` after the first fetch (they never
 change), so a second `?lines=1` export is fast.
+
+## Agent access
+
+Grocious includes an opt-in, read-only agent API and a local MCP server. The MCP server uses
+the same archive-backed HTTP API as other agent clients and runs over stdio; it does not open
+a listener or need direct access to `data/` or grocery-provider credentials. It needs the
+Grocious web service running and a bearer token for the agent API.
+
+Install the optional MCP SDK in a separate environment:
+
+```bash
+uv venv .venv-agent
+uv pip install --python .venv-agent/bin/python -r agent/requirements.txt
+```
+
+Configure your MCP host to start the server, replacing both paths with absolute paths:
+
+```json
+{
+  "mcpServers": {
+    "grocious": {
+      "command": "/path/to/grocious/.venv-agent/bin/python",
+      "args": ["/path/to/grocious/agent/server.py"],
+      "env": {
+        "GROCIOUS_AGENT_API_URL": "http://127.0.0.1:3012/api/agent/v1",
+        "GROCIOUS_AGENT_API_TOKEN": "<same token configured in Grocious .env>"
+      }
+    }
+  }
+}
+```
+
+Set the token in the MCP host configuration to the same value used by the Grocious web
+container. The MCP server exposes household sync status, receipt search, receipt details, and
+spending summaries. Inbox receipts are excluded from agent spending by default because an
+uploaded receipt can also exist in a provider archive; set `include_inbox` when needed and keep
+review state visible.
+The repository skill at `.agents/skills/grocious-spending/SKILL.md` gives compatible agents the
+household-specific rules for interpreting these tools.
+
+The HTTP endpoints are documented in [agent/openapi.yaml](agent/openapi.yaml) under
+`/api/agent/v1`. Set `GROCIOUS_AGENT_API_TOKEN` in `.env` and recreate the web container with
+`docker compose up -d --build web` to enable them; requests require `Authorization: Bearer <token>`.
+Generate a token with `openssl rand -hex 32`. Keep Grocious
+behind the existing local bind or an authenticated reverse proxy, and only share the token
+with a trusted agent. Use HTTPS when configuring a non-local MCP API URL; the MCP client
+rejects non-local HTTP URLs. The HTTP agent API returns normalized receipt data and omits raw
+provider payloads and document contents.
 
 ## Web UI
 
@@ -108,8 +194,8 @@ Upload, phone sharing, selectable receipt interpretation and optional IMAP IDLE 
 ```bash
 cp .env.example .env
 docker compose --profile login run --rm trumf-login    # once; paste the SMS code when prompted
-docker compose run --rm trumf-fetch                    # pull data
 docker compose up -d web                               # UI on 127.0.0.1:3012
+app/sync_provider_archives.sh                          # archive all connected accounts
 ```
 
 Compose reads `.env` and `data/` from the project directory. To keep runtime files and
@@ -121,11 +207,14 @@ running `app/sync_provider_archives.sh` outside Compose.
 
 | Variable | Purpose |
 |---|---|
-| `TRUMF_PHONE`, `TRUMF_PASSWORD` | Trumf login |
-| `REMA_PHONE` | Rema login (passwordless, SMS OTP) |
-| `COOP_USER`, `COOP_PASSWORD` | Coop login (Auth0 + MFA) |
+| `GROCIOUS_PROFILE` | Optional household member name for a login command (defaults to `Default`) |
+| `TRUMF_PHONE`, `TRUMF_PASSWORD` | Optional Trumf login inputs; prompted securely when unset |
+| `REMA_PHONE` | Optional Rema login phone; prompted when unset and saved per member for API requests |
+| `COOP_USER`, `COOP_PASSWORD` | Optional Coop login inputs; prompted securely when unset |
+| `GROCIOUS_USE_ENV_CREDENTIALS=1` | Explicitly reuse environment login inputs for a non-default member |
 | `GROCIOUS_HOME` | Private runtime directory holding `.env` and `data/` |
 | `GROCERY_DATA` | Data path inside the container (default `/data`) |
+| `GROCIOUS_AGENT_API_TOKEN` | Optional bearer token that enables the read-only `/api/agent/v1` endpoints |
 | `NTFY_URL` | Optional [ntfy](https://ntfy.sh) topic for fetch summaries |
 | `GROCIOUS_DEMO` | `1` serves anonymised fixtures — no tokens, no network |
 
@@ -144,14 +233,13 @@ them with `python scripts/gen_fixtures.py`.
 
 ## Data and privacy
 
-Your own loyalty accounts, your own machine, your own data. Secrets (`.env`) and session
-state (`data/`) are `.gitignore`d and have never been committed. Tokens are stored outside
-the receipt archive, and authentication headers are never archived alongside a receipt.
+Your household's loyalty accounts, your own machine, your own data. Secrets (`.env`) and
+session state (`data/`) are `.gitignore`d and have never been committed. Tokens are stored
+outside the shared receipt archive, and authentication headers are never archived alongside a receipt.
 
 The chains' APIs are **unofficial and reverse-engineered**. They can change without notice,
-and this is personal-use tooling for your own account — not a service, and not something to
-point at anyone else's data. Watch the fetch job; when a chain changes something, it will
-break there first.
+and Grocious is self-hosted tooling for you and your household, not a public multi-user
+service. Watch the fetch job; when a chain changes something, it will break there first.
 
 ## Roadmap
 

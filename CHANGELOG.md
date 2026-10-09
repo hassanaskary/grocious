@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Household profiles can connect separate Trumf, Rema and Coop accounts to one shared receipt archive.
+- Dashboard, statistics and monthly exports aggregate household spending by default, with member and provider filters.
+- Receipt records retain the member and provider that supplied them; each profile keeps its own login state.
+- Read-only agent API with date-bounded receipt search, spending summaries, per-account sync status, and bearer-token protection.
+- Local stdio MCP server and repository `grocious-spending` skill for household spending analysis.
+
 ## 0.1 — 2026-09-11
 
 First versioned release of Grocious, based on the deployed application.

@@ -4,7 +4,7 @@
 <p class="crumbs"><a href="/archive/{{ provider }}">← Arkiv</a></p>
 <section class="panel detail">
   <div class="dhead"><span class="badge {{ provider }}">{{ provider }}</span><h1>{{ r.store }}</h1>
-    <div class="mut">{{ r.date|day }} {{ r.time or '' }} · <b data-num>{{ r.amount|nok(2) }}</b></div>
+    <div class="mut">{{ r.date|day }} {{ r.time or '' }} · <b data-num>{{ r.amount|nok(2) }}</b> · {{ r.profile_name }}</div>
     <div class="dl"><a href="/archive/{{ provider }}/{{ r.archive_id }}.json">Komplett JSON</a><a href="/archive/{{ provider }}/{{ r.archive_id }}.zip">Alle arkivfiler ZIP</a></div>
   </div>
   {% if r.original_status == 'raw_data_only' %}<p class="mut">Komplette originale API-data er arkivert. Et eget kvitteringsbilde er ikke funnet i de undersøkte kallene.</p>

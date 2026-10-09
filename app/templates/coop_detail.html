@@ -6,7 +6,7 @@
   <div class="dhead">
     <span class="badge coop">Coop</span>
     <h1>{{ r.store }}</h1>
-    <div class="mut">{{ r.date|day }} {{ r.time or '' }} · <b data-num>{{ r.amount|nok(2) }}</b></div>
+    <div class="mut">{{ r.date|day }} {{ r.time or '' }} · <b data-num>{{ r.amount|nok(2) }}</b> · {{ r.profile_name }}</div>
     <div class="dl"><a href="/coop/receipt/{{ r.archive_id }}.pdf">Original PDF</a><a href="/coop/receipt/{{ r.archive_id }}.json">Komplett JSON</a><a href="/coop/receipt/{{ r.archive_id }}.csv">Varelinjer CSV</a></div>
   </div>
   <h2>Varelinjer</h2>

@@ -1,0 +1,2 @@
+# MCP Python SDK v1 remains broadly compatible with current MCP hosts.
+mcp>=1.28,<2

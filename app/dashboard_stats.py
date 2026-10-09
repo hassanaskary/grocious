@@ -6,12 +6,18 @@ from zoneinfo import ZoneInfo
 import receipt_archive as archive
 
 
-def cards(t, r, c, year=None):
+def cards(t, r, c, year=None, profile_id=None, provider=None):
     year = year or datetime.now(ZoneInfo("Europe/Oslo")).year
     result = []
     for source, name, live in [("trumf", "Trumf", t), ("rema", "Rema 1000", r), ("coop", "Coop", c)]:
         stored = c if source == "coop" else archive.summary(source)
-        rows = {str(x["id"]): dict(x) for x in live.get("receipts", [])}
+        if provider and provider != source:
+            stored = {"ok":True,"receipts":[]}
+            live = {"ok":True,"receipts":[]}
+        if profile_id:
+            profile_rows = [x for x in stored.get("receipts", []) if (x.get("profile_id") or "default") == profile_id]
+            stored = {**stored, "receipts": profile_rows}
+        rows = {(x.get("profile_id", "default"), str(x["id"])): dict(x) for x in live.get("receipts", [])}
         for x in stored.get("receipts", []):
             item = dict(x)
             if source == "trumf":
@@ -26,7 +32,7 @@ def cards(t, r, c, year=None):
                 if adjustments and all(v is not None for v in adjustments):
                     # Rema line discounts are signed price adjustments; heads report positive savings.
                     item["discount"] = float(-sum((Decimal(str(v)) for v in adjustments), Decimal(0)))
-            rows[str(x["id"])] = item
+            rows[(item.get("profile_id", "default"), str(x["id"]))] = item
         # Bonus withdrawals are ledger entries, not grocery expenditure/receipts.
         purchases = [x for x in rows.values() if x.get("transaction_category") != "CONSUME"]
         dated = [x for x in purchases if (x.get("date") or "").startswith(str(year) + "-")]
@@ -145,7 +151,7 @@ def cards(t, r, c, year=None):
                 else None,
                 "first_date": dates[0] if dates else None,
                 "last_date": dates[-1] if dates else None,
-                "error": live.get("err") if not live.get("ok") else None,
+                "error": live.get("err") if (not live.get("ok") or live.get("errors")) else None,
             }
         )
     return result

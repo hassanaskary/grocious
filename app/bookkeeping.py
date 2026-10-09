@@ -42,7 +42,8 @@ def listing():
     for source in sorted(archive.SOURCES):
         for row in archive.summary(source)['receipts']:
             rid = row['archive_id']
-            result.append({'source': source, 'id': str(row['id']), 'archive_id': rid, **state(source, rid)})
+            result.append({'source': source, 'id': str(row['id']), 'archive_id': rid,
+                           'profile_id': row.get('profile_id', 'default'), **state(source, rid)})
     return jsonify(result)
 
 

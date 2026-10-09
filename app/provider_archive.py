@@ -6,6 +6,19 @@ from zoneinfo import ZoneInfo
 import requests
 import receipt_archive as a
 import webgui as w
+import profiles
+
+def household_status(source):
+    rows=[]
+    for account in profiles.connected_profiles():
+        if source not in account['providers']:continue
+        path=a.root()/'sync'/account['id']/source/'status.json'
+        try:status=json.loads(path.read_text())
+        except (OSError,ValueError):status={'state':'not_started'}
+        rows.append({'profile_id':account['id'],'profile_name':account['name'],**status})
+    states=[x['state'] for x in rows]
+    state='complete' if states and all(x=='complete' for x in states) else 'partial' if any(x in ('complete','partial','sample') for x in states) else 'not_started'
+    a.atomic_json(a.root()/source/'status.json',{'state':state,'profiles':rows,'updated_at':dt.datetime.now(dt.timezone.utc).isoformat()})
 
 def get(session,url,**kwargs):
     for attempt in range(4):
@@ -34,7 +47,8 @@ def trumf_heads(text):
     if not out:raise RuntimeError('No Trumf receipt list parsed; refuse silent empty import')
     return list(out.values())
 
-def normalize(source,head,detail):
+def normalize(source,head,detail,profile=None):
+    profile=profile or {'id':'default','name':'Default'}
     if source=='rema':
         sid=str(head['id']);when=dt.datetime.fromtimestamp(head['purchaseDate']/1000,ZoneInfo('Europe/Oslo')).isoformat()
         rows=detail if isinstance(detail,list) else detail.get('rows',[])
@@ -56,14 +70,18 @@ def normalize(source,head,detail):
     issues=[]
     if not lines and (source=='rema' or head.get('harKvittering')):issues.append('no_structured_lines')
     if a.minor(amount) is None:issues.append('total_unparsed')
-    return {'schema_version':1,'parser_version':source+'-1','chain':source,'id':sid,'archive_id':a.key(source,sid),
+    return {'schema_version':1,'parser_version':source+'-1','chain':source,'id':sid,'archive_id':a.key(source,sid,profile['id']),
         'date':when[:10],'time':when[11:19],'source_datetime':when,'timezone':'Europe/Oslo','store':store,
+        'profile_id':profile['id'],'profile_name':profile['name'],
         'amount':amount,'amount_minor':a.minor(amount),'bonus':bonus,'discount':discount,'currency':'NOK',
         'lines':lines,'source':{'head':head,'details':detail},'validation':{'issues':issues},
         'archived_at':dt.datetime.now(dt.timezone.utc).isoformat()}
 
-def sync(source,incremental=False,limit=None):
-    base=a.root()/source;base.mkdir(parents=True,exist_ok=True,mode=0o700)
+def sync(source,incremental=False,limit=None,profile=None):
+    profile=profile or {'id':'default','name':'Default','legacy':True}
+    account_data=profiles.data_dir(profile)
+    base=a.root()/'sync'/profile['id']/source;base.mkdir(parents=True,exist_ok=True,mode=0o700)
+    receipts=a.root()/source;receipts.mkdir(parents=True,exist_ok=True,mode=0o700)
     with open(base/'sync.lock','w') as lock:
         try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:return
@@ -72,11 +90,11 @@ def sync(source,incremental=False,limit=None):
         try:
             session=requests.Session()
             if source=='rema':
-                session.headers.update(w.rema_headers())
+                session.headers.update(w.rema_headers(account_data))
                 response=get(session,'https://api.rema.no/v1/bella/transaction/v2/heads');data=response.json();heads=data['transactions']
                 a.original(base/'periods','heads',response.content,'json','application/json')
             else:
-                session=w.trumf_session()
+                session=w.trumf_session(account_data)
                 response=get(session,'https://www.trumf.no/profil/kvitteringer',headers={'RSC':'1'})
                 heads=trumf_heads(response.content.decode('utf-8'))
                 a.original(base/'periods','heads',json.dumps(heads,ensure_ascii=False).encode(),'json','application/json')
@@ -88,11 +106,14 @@ def sync(source,incremental=False,limit=None):
             cutoff=(dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=60)).date().isoformat()
             for head,sid in zip(heads,ids):
                 if limit is not None and status['processed']>=limit:break
-                directory=a.folder(source,a.key(source,sid));previous=directory/'receipt.json'
+                rid=a.key(source,sid,profile['id']);directory=a.folder(source,rid);previous=directory/'receipt.json'
                 try:
                     old=json.loads(previous.read_text()) if previous.exists() else None
                     if old and old.get('archive_complete') and old.get('parser_version')==source+'-1' and old['source']['head']==head and (not incremental or old['date']<cutoff):
-                        for d in old['documents']:a.document(source,old['archive_id'],d['filename'])
+                        for d in old['documents']:
+                            path=directory/d['filename']
+                            if not path.exists() or __import__('hashlib').sha256(path.read_bytes()).hexdigest()!=d['sha256']:
+                                raise RuntimeError('Archived source checksum mismatch')
                         status['processed']+=1;continue
                     docs=[a.original(directory,'head',json.dumps(head,ensure_ascii=False).encode(),'json','application/json')]
                     if source=='rema':
@@ -108,7 +129,7 @@ def sync(source,incremental=False,limit=None):
                         if str(detail.get('batchId',sid))!=sid:raise RuntimeError('Trumf receipt ID mismatch')
                         docs.append(a.original(directory,'details',json.dumps(detail,ensure_ascii=False).encode(),'json','application/json'))
                     else:detail={'availability':'Source says no receipt'}
-                    record=normalize(source,head,detail)
+                    record=normalize(source,head,detail,profile)
                     record['images_need_refresh']=bool((old or {}).get('images_need_refresh') or old and old.get('source')!=record['source'])
                     # Keep supplier image versions when refreshing JSON data.
                     docs.extend(d for d in (old or {}).get('documents',[]) if d['role']=='original')
@@ -119,13 +140,30 @@ def sync(source,incremental=False,limit=None):
                     a.rebuild(source);a.atomic_json(base/'status.json',status);print(source,'archived',status['processed'],'errors',len(status['errors']),flush=True)
                 time.sleep(.15)
             status['archived_count']=a.rebuild(source)
-            records=[json.loads(p.read_text()) for p in base.glob('*/receipt.json')]
+            records=[json.loads(p.read_text()) for p in receipts.glob('*/receipt.json') if (json.loads(p.read_text()).get('profile_id') or 'default')==profile['id']]
             dates=sorted(r['date'] for r in records if r['date']);status.update(oldest_date=dates[0] if dates else None,newest_date=dates[-1] if dates else None,validation_issue_count=sum(bool(r['validation']['issues']) for r in records))
             status['state']='sample' if limit is not None else 'complete' if status['processed']==len(ids) and not status['errors'] else 'partial'
-            status['finished_at']=dt.datetime.now(dt.timezone.utc).isoformat();a.atomic_json(base/'status.json',status);print(json.dumps(status),flush=True)
+            status['finished_at']=dt.datetime.now(dt.timezone.utc).isoformat();a.atomic_json(base/'status.json',status);household_status(source);print(json.dumps(status),flush=True)
             if status['state']=='partial':raise RuntimeError('Incomplete receipt sync')
         except Exception as e:
-            status['state']='failed';status['errors'].append({'error':str(e) if isinstance(e,RuntimeError) else type(e).__name__});a.atomic_json(base/'status.json',status);raise
+            status['state']='failed';status['errors'].append({'error':str(e) if isinstance(e,RuntimeError) else type(e).__name__});a.atomic_json(base/'status.json',status);household_status(source);raise
 
 if __name__=='__main__':
-    os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('source',choices=['rema','trumf']);p.add_argument('--incremental',action='store_true');p.add_argument('--limit',type=int);args=p.parse_args();sync(args.source,args.incremental,args.limit)
+    os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('source',choices=['rema','trumf']);p.add_argument('--incremental',action='store_true');p.add_argument('--limit',type=int);p.add_argument('--profile');args=p.parse_args()
+    accounts=profiles.connected_profiles()
+    if args.profile:
+        selected=profiles.by_name(args.profile)
+        if not selected:raise SystemExit('Unknown profile: '+args.profile)
+        accounts=[selected]
+    accounts=[x for x in accounts if args.source in x.get('providers',[])]
+    if not accounts:raise SystemExit('No '+args.source+' login configured; run the login container first.')
+    failed=[]
+    for account in accounts:
+        incremental=args.incremental
+        if incremental:
+            try:previous=json.loads((a.root()/'sync'/account['id']/args.source/'status.json').read_text())
+            except (OSError,ValueError):previous={}
+            if previous.get('state')!='complete':incremental=False
+        try:sync(args.source,incremental,args.limit,account)
+        except Exception as error:failed.append((account['name'],str(error)))
+    if failed:raise SystemExit('; '.join(name+': '+error for name,error in failed))

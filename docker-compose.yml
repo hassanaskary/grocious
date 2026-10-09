@@ -7,7 +7,7 @@ services:
     container_name: grocery-trumf-fetch
     command: ["trumf_client.py"]
     env_file: ${GROCIOUS_HOME:-.}/.env
-    environment: [TRUMF_STATE=/data/trumf_state.json, TZ=Europe/Oslo]
+    environment: [GROCERY_DATA=/data, TZ=Europe/Oslo]
     volumes: ["${GROCIOUS_HOME:-.}/data:/data"]
     restart: "no"
 
@@ -45,6 +45,15 @@ services:
     build: ./login
     image: grocery-login:latest
     command: ["rema_login.py"]
+    profiles: ["login"]
+    env_file: ${GROCIOUS_HOME:-.}/.env
+    environment: [PLAYWRIGHT_BROWSERS_PATH=/ms-playwright]
+    volumes: ["${GROCIOUS_HOME:-.}:/work", "${GROCIOUS_HOME:-.}/data:/data"]
+
+  coop-login:
+    build: ./login
+    image: grocery-login:latest
+    command: ["coop_login.py"]
     profiles: ["login"]
     env_file: ${GROCIOUS_HOME:-.}/.env
     environment: [PLAYWRIGHT_BROWSERS_PATH=/ms-playwright]

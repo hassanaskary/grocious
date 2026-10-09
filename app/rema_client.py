@@ -3,10 +3,14 @@
 pulls offers, receipts and profile. Coupon activation supported via activate()."""
 import json, os, uuid, datetime, sys
 import requests
-DATA=os.environ.get("REMA_DATA","/data")
+import profiles
+profile=profiles.by_name(os.environ.get("GROCIOUS_PROFILE","Default"))
+DATA=os.environ.get("REMA_DATA") if os.environ.get("GROCIOUS_PROFILE") is None else str(profiles.data_dir(profile) if profile else profiles.root())
+DATA=DATA or "/data"
 TOKENS=os.path.join(DATA,"rema_tokens.json")
 DEVICE=os.path.join(DATA,"rema_device.json")
-PHONE=os.environ.get("REMA_PHONE","")
+try:PHONE=json.load(open(os.path.join(DATA,"rema_phone.json"))).get("phone","")
+except (OSError,ValueError):PHONE=os.environ.get("REMA_PHONE","")
 NTFY=os.environ.get("NTFY_URL")
 API="https://api.rema.no"; SUBKEY="fb5e24884b504d0bad761098f77e6605"
 
