@@ -1,4 +1,38 @@
 'use strict';
+document.querySelectorAll('[data-intake-tabs]').forEach(tablist => {
+  const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+  const panels = tabs.map(tab => document.getElementById(tab.getAttribute('aria-controls')));
+  if (tabs.length !== panels.length || panels.some(panel => !panel)) return;
+
+  function activate(index, moveFocus = false) {
+    tabs.forEach((tab, i) => {
+      const selected = i === index;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      tab.classList.toggle('on', selected);
+      panels[i].hidden = !selected;
+    });
+    if (moveFocus) tabs[index].focus();
+  }
+
+  tablist.addEventListener('click', event => {
+    const index = tabs.indexOf(event.target.closest('[role="tab"]'));
+    if (index >= 0) activate(index);
+  });
+  tablist.addEventListener('keydown', event => {
+    const current = tabs.indexOf(event.target.closest('[role="tab"]'));
+    if (current < 0) return;
+    let next;
+    if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') next = (current + tabs.length - 1) % tabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    activate(next, true);
+  });
+});
+
 document.querySelectorAll('.inbox-upload').forEach(form => {
   const files = form.querySelector('input[type="file"][name="files"]');
   const fields = form.querySelector('[data-retailer-fields]');

@@ -40,6 +40,12 @@ is text-only; its EU routing is an operator configuration, not a guarantee made 
 SDK retries are disabled. Manual runs are synchronous (up to 120 seconds): allow an appropriate
 reverse-proxy read timeout on the interpret route.
 
+For dynamic OpenRouter key loading with Proton Pass CLI, create a gitignored `.env.pass` in the
+project root containing `OPENROUTER_API_KEY=pass://Development/openrouter/api_key`, then run
+`scripts/start-web-with-pass`. `pass-cli run` resolves the reference when Compose starts the web
+container, so the API key is not stored in the project `.env`. The running container keeps the key
+it received at creation; rerun the script after rotating the key or when recreating the container.
+
 Provider defaults are configurable: `claude-opus-5` and `gpt-6-astra`. Usage token counts are shown;
 OpenRouter returns the routed model name when available. Monetary cost is not estimated. See the official
 [OpenRouter Free Models Router](https://openrouter.ai/openrouter/free),

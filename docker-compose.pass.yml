@@ -1,0 +1,6 @@
+# Used only by scripts/start-web-with-pass. The secret reference is resolved
+# by pass-cli before Compose interpolates this value.
+services:
+  web:
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Run scripts/start-web-with-pass to resolve the OpenRouter key}

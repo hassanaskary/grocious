@@ -224,6 +224,12 @@ running `app/sync_provider_archives.sh` outside Compose.
 | `NTFY_URL` | Optional [ntfy](https://ntfy.sh) topic for fetch summaries |
 | `GROCIOUS_DEMO` | `1` serves anonymised fixtures — no tokens, no network |
 
+To load the OpenRouter key dynamically from Proton Pass, create a gitignored `.env.pass` in the
+project root containing `OPENROUTER_API_KEY=pass://Development/openrouter/api_key`, then start or
+recreate the web container with `scripts/start-web-with-pass`. This resolves the current vault value
+on each run without writing the API key to `.env`; the running container uses the value from its
+most recent creation. Set `GROCIOUS_PASS_ENV_FILE` if the reference file is stored elsewhere.
+
 ## Development
 
 ```bash

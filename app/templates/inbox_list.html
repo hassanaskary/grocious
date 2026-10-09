@@ -3,14 +3,22 @@
 {% block content %}
 <section class="panel">
 <h1>Innboks</h1><p>{{ counts.needs_review }} venter på gjennomgang · {{ counts.confirmed }} bekreftet</p>
+<div class="inbox-intake-tabs" role="tablist" aria-label="Legg til kvittering" aria-orientation="horizontal" data-intake-tabs>
+<button class="chip on" id="inbox-tab-upload" type="button" role="tab" aria-selected="true" aria-controls="inbox-panel-upload" tabindex="0">Last opp</button>
+<button class="chip" id="inbox-tab-camera" type="button" role="tab" aria-selected="false" aria-controls="inbox-panel-camera" tabindex="-1">Ta bilde</button>
+</div>
+<section id="inbox-panel-upload" class="inbox-intake-panel" role="tabpanel" aria-labelledby="inbox-tab-upload" tabindex="0">
 <form method="post" enctype="multipart/form-data" class="inbox-upload">
 <label>Hvem tilhører kvitteringen? <select name="profile_id" required><option value="" selected disabled>Velg person</option>{% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.name }}</option>{% endfor %}</select></label>
 <label>Last opp kvitteringer <input type="file" name="files" multiple accept="image/*,application/pdf,.eml,.html,.txt" required></label>
 <div data-retailer-fields><label>Butikk / forhandler <input name="stores" list="retailer-options" maxlength="100" autocomplete="organization" placeholder="For eksempel KIWI eller Elkjøp" required></label></div>
 <button class="btn">Last opp</button></form>
+</section>
+<section id="inbox-panel-camera" class="inbox-intake-panel" role="tabpanel" aria-labelledby="inbox-tab-camera" tabindex="0" hidden>
 <form method="post" enctype="multipart/form-data" class="inbox-upload">
 <label>Hvem tilhører kvitteringen? <select name="profile_id" required><option value="" selected disabled>Velg person</option>{% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.name }}</option>{% endfor %}</select></label>
 <label>Ta bilde <input type="file" name="files" accept="image/*" capture="environment" required></label><div data-retailer-fields><label>Butikk / forhandler <input name="stores" list="retailer-options" maxlength="100" autocomplete="organization" placeholder="For eksempel KIWI eller Elkjøp" required></label></div><button class="btn">Send bilde</button></form>
+</section>
 <datalist id="retailer-options">{% for retailer in retailers %}<option value="{{ retailer }}">{% endfor %}</datalist>
 <p class="mut small">Maks. 32 MB per fil, 10 filer. Originalene bevares. Bilder kan trenge tolkning eller manuell utfylling.</p>
 <p class="mut small">E-post: {{ "tilkoblet" if counts.mail.connected else "ikke tilkoblet" }}{% if counts.mail.last_ingest %} · sist mottatt {{ counts.mail.last_ingest }}{% endif %}</p>

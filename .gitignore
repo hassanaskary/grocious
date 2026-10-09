@@ -1,5 +1,6 @@
 # secrets & session state never belong in git
 .env
+.env.pass
 data/
 **/trumf_state.json
 **/trumf_tokens.json

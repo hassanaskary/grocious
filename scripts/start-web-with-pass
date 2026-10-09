@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+pass_env_file="${GROCIOUS_PASS_ENV_FILE:-${project_dir}/.env.pass}"
+
+if [[ ! -f "$pass_env_file" ]]; then
+  printf 'Missing %s. Add OPENROUTER_API_KEY=pass://Development/openrouter/api_key (or set GROCIOUS_PASS_ENV_FILE).\n' "$pass_env_file" >&2
+  exit 1
+fi
+
+cd "$project_dir"
+exec pass-cli run --env-file "$pass_env_file" -- \
+  docker compose -f docker-compose.yml -f docker-compose.pass.yml \
+  up -d --build --force-recreate web
