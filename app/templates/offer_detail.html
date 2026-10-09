@@ -6,6 +6,7 @@
 <span class="badge {{ o.source }}">{{ o.source }}</span><h1 translate="no">{{ o.title }}</h1>
 {% if o.img %}<img src="{{ o.img }}" alt="" class="offer-image">{% endif %}
 {% if o.desc and o.desc!=o.title %}<p translate="no">{{ o.desc }}</p>{% endif %}
+{% if o.source=='rema' and o.get('discount_value') is not none %}<h2><span>Rabatt</span></h2><p class="offer-copy">{% if o.get('discount_unit')=='percent' %}{{ o.discount_value|num(0 if o.discount_value == o.discount_value|int else 1) }}%{% else %}{{ o.discount_value|num(2 if o.discount_value != o.discount_value|int else 0) }}&nbsp;{{ 'NOK' if language=='en' else 'kr' }}{% endif %}</p>{% endif %}
 {% for key,label in [('price','Tilbud'),('terms','Vilkår'),('notice','Mer informasjon'),('expires','Gyldighet')] %}
 {% if o.get(key) %}<h2>{{ label }}</h2><p class="offer-copy" translate="no">{{ o[key] }}</p>{% endif %}{% endfor %}
 {% if o.url %}<p><a href="{{ o.url }}" target="_blank" rel="noopener noreferrer">Åpne hos tilbyderen ↗</a></p>{% endif %}

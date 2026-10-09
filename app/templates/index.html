@@ -46,7 +46,10 @@
       <a class="offer-link" href="{{ url_for('offer_detail', source=o.source, oid=o.id, profile_id=o.profile_id) }}">
         {% if o.img %}<img src="{{ o.img }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
         <div class="b"><span class="badge {{ o.source }}">{{ o.source }}</span><div class="t"><b translate="no">{{ o.title }}</b>{% if o.desc and o.desc!=o.title %}<br><span translate="no">{{ o.desc }}</span>{% endif %}</div>
-        {% if o.price %}<strong translate="no">{{ o.price }}</strong>{% endif %}<span class="mut small">Se detaljer og vilkår →</span></div>
+        {% if o.price %}<strong translate="no">{{ o.price }}</strong>{% endif %}
+        {% if o.source=='rema' and o.get('discount_value') is not none %}<strong class="offer-discount"><span>Rabatt</span>:
+          {% if o.discount_unit=='percent' %}{{ o.discount_value|num(0 if o.discount_value == o.discount_value|int else 1) }}%{% else %}{{ o.discount_value|num(2 if o.discount_value != o.discount_value|int else 0) }}&nbsp;{{ 'NOK' if language=='en' else 'kr' }}{% endif %}
+        </strong>{% endif %}<span class="mut small">Se detaljer og vilkår →</span></div>
       </a>
       {% if o.source=='rema' and o.code %}<div class="b">{% if o.activated %}<span class="done">✓ Aktivert</span>{% else %}<form method="post" action="/rema/offer/{{ o.code }}/activate"><input type="hidden" name="profile_id" value="{{ o.profile_id or 'default' }}"><button class="btn">Aktiver · {{ o.profile_name or 'Default' }}</button></form>{% endif %}</div>{% endif %}
     </article>

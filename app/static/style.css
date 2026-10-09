@@ -44,6 +44,7 @@ h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; color:
 .offer img { width: 100%; height: 110px; object-fit: cover; background: var(--bg2); }
 .offer .b { padding: 9px 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .offer .t { font-size: .92rem; line-height: 1.35; flex: 1; }
+.offer-discount { color: var(--rema); font-variant-numeric: tabular-nums; }
 .badge { align-self: flex-start; font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 20px; text-transform: uppercase; letter-spacing: .04em; }
 .badge.trumf { background: color-mix(in srgb, var(--trumf) 22%, transparent); color: var(--trumf); }
 .badge.rema { background: color-mix(in srgb, var(--rema) 22%, transparent); color: var(--rema); }

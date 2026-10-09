@@ -27,6 +27,10 @@ def normalize(source, raw):
             "notice": raw.get("advarselBeskrivelse"),
         }
     if source == "rema":
+        raw_value = raw.get("value")
+        value = raw_value if isinstance(raw_value, (int, float)) and not isinstance(raw_value, bool) else None
+        offer_type = raw.get("type") if isinstance(raw.get("type"), dict) else {}
+        discount_unit = "percent" if raw.get("unit") == "perc" else "nok" if offer_type.get("code") == "ppk" else None
         return {
             "id": raw.get("id") or raw.get("code"),
             "code": raw.get("code"),
@@ -36,6 +40,8 @@ def normalize(source, raw):
             "activated": raw.get("activated"),
             "img": url(raw.get("dutyText")),
             "url": url(raw.get("marketingUrl")),
+            "discount_value": value if discount_unit else None,
+            "discount_unit": discount_unit,
         }
     photo = raw.get("productPhoto") or {}
     return {

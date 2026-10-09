@@ -35,6 +35,48 @@ def test_provider_details_and_safe_links(client, monkeypatch):
     )
 
 
+def test_rema_discount_value_is_shown_on_homepage(client, monkeypatch):
+    offers_for_page = [
+        offers.normalize(
+            "rema",
+            {
+                "id": "discounted-coffee",
+                "header": "Coffee",
+                "value": 25,
+                "unit": "perc",
+                "type": {"code": "def", "desc": "Default"},
+            },
+        ),
+        offers.normalize(
+            "rema",
+            {
+                "id": "personal-price-cut",
+                "header": "Milk",
+                "value": 10,
+                "type": {"code": "ppk", "desc": "Personligt priskutt"},
+            },
+        ),
+    ]
+    monkeypatch.setattr(webgui, "rema_data", lambda: {"ok": True, "receipts": [], "offers": offers_for_page})
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert 'class="offer-discount"' in response.text
+    assert "<span>Discount</span>:" in response.text
+    assert "25%" in response.text
+    assert "10\u00a0NOK" in response.text
+
+
+def test_rema_discount_value_without_known_unit_is_not_misrepresented():
+    offer = offers.normalize(
+        "rema",
+        {"id": "unknown-discount-unit", "header": "Offer", "value": 15, "unit": "unknown"},
+    )
+
+    assert offer["discount_value"] is None
+
+
 def test_coop_only_current_unredeemed(tmp_path, monkeypatch):
     monkeypatch.setenv("GROCERY_DATA", str(tmp_path))
     (tmp_path / "coop_session.json").write_text(json.dumps({"headers": {}}))
