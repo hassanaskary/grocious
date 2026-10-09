@@ -99,13 +99,18 @@ class OpenRouter:
                 "type": "json_schema",
                 "json_schema": {"name": "receipt", "strict": True, "schema": SCHEMA},
             },
+            extra_body={"provider": {"require_parameters": True}},
         )
         choice = response.choices[0]
         if choice.finish_reason != "stop" or not choice.message.content:
             raise ValueError("Modellen fullførte ikke tolkingen. Regelresultatet er beholdt.")
+        try:
+            parsed = json.loads(choice.message.content)
+        except json.JSONDecodeError as e:
+            raise ValueError("Modellen returnerte ugyldig JSON. Prøv tolkingen igjen; eksisterende data er beholdt.") from e
         usage = response.usage
         return dict(
-            parsed=json.loads(choice.message.content),
+            parsed=parsed,
             raw=response.model_dump(mode="json"),
             model=response.model or self.model,
             input_tokens=getattr(usage, "prompt_tokens", 0) or 0,
