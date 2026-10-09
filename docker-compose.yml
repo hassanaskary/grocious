@@ -44,7 +44,7 @@ services:
   rema-login:
     build: ./login
     image: grocery-login:latest
-    command: ["rema_login.py"]
+    command: ["rema_manual_login.py"]
     profiles: ["login"]
     env_file: ${GROCIOUS_HOME:-.}/.env
     environment: [PLAYWRIGHT_BROWSERS_PATH=/ms-playwright]

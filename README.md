@@ -69,14 +69,13 @@ docker compose --profile login run --rm -e GROCIOUS_PROFILE="Partner" rema-login
 docker compose --profile login run --rm -e GROCIOUS_PROFILE="Partner" coop-login
 ```
 
-### Rema login from a headless server
+### Rema login
 
-The standard Rema login uses a headless browser. If Rema presents a robot check, use the
-manual callback flow so you can complete verification in a browser on your own computer:
+Rema login uses a manual callback so you can complete verification in a browser on your own
+computer, including when the server is headless:
 
 ```bash
-docker compose --profile login run --build --rm \
-  -e GROCIOUS_PROFILE="Hassan" rema-login rema_manual_login.py
+docker compose --profile login run --build --rm -e GROCIOUS_PROFILE="Hassan" rema-login
 ```
 
 Replace `Hassan` with the exact household profile name. The command prints a temporary Rema
@@ -85,8 +84,8 @@ SMS/robot verification, and copy the full URL from the browser after it redirect
 shows a `bella://authorize?...` URL or asks to open the Rema app, copy that URL (or cancel the
 app launch and copy the HTTPS callback URL). Paste it into the terminal prompt; input is hidden.
 The callback is checked against the login's OAuth state and PKCE verifier before tokens are
-exchanged and saved to that profile's data directory. Do not share the callback URL: it contains
-a short-lived authorization code.
+exchanged and saved to that profile's data directory. This callback flow is the only Rema login
+flow. Do not share the callback URL: it contains a short-lived authorization code.
 
 Then fetch receipts for all connected member/provider accounts:
 
