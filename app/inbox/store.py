@@ -210,6 +210,8 @@ def ingest(data, filename="receipt.txt", mimetype="text/plain", intake=None, dep
                 parser_version="inbox-1",
                 id=digest,
                 archive_id=rid,
+                profile_id=(intake or {}).get("profile_id") or "default",
+                profile_name=(intake or {}).get("profile_name") or "Default",
                 timezone="Europe/Oslo",
                 archived_at=now(),
                 source={"baseline": parsed},
@@ -245,10 +247,34 @@ def ingest(data, filename="receipt.txt", mimetype="text/plain", intake=None, dep
                 review=dict(state="needs_review", by=None, at=None),
                 **normalize(parsed),
             )
+            selected_store = (intake or {}).get("store")
+            correction = {}
+            if selected_store:
+                # The uploader's retailer selection takes precedence over extraction and later AI runs.
+                record["store"] = selected_store
+                correction["store"] = selected_store
+            if (intake or {}).get("profile_id"):
+                correction.update(profile_id=record["profile_id"], profile_name=record["profile_name"])
+            if correction:
+                archive.atomic_json(directory / "corrections.json", correction)
             record["validation"] = validate(record)
             archive.atomic_json(path, record)
             if identity:
                 archive.atomic_json(directory / "mail-identity.json", identity)
+            archive.rebuild("inbox")
+        elif duplicate and (intake or {}).get("profile_id"):
+            correction_path = directory / "corrections.json"
+            try:
+                correction = json.loads(correction_path.read_text())
+            except (OSError, ValueError):
+                correction = {}
+            correction.update(
+                profile_id=(intake or {}).get("profile_id"),
+                profile_name=(intake or {}).get("profile_name") or "Default",
+            )
+            if (intake or {}).get("store"):
+                correction["store"] = (intake or {})["store"]
+            archive.atomic_json(correction_path, correction)
             archive.rebuild("inbox")
         elif existing:
             archive.rebuild("inbox")

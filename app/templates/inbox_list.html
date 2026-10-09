@@ -4,13 +4,18 @@
 <section class="panel">
 <h1>Innboks</h1><p>{{ counts.needs_review }} venter på gjennomgang · {{ counts.confirmed }} bekreftet</p>
 <form method="post" enctype="multipart/form-data" class="inbox-upload">
+<label>Hvem tilhører kvitteringen? <select name="profile_id" required><option value="" selected disabled>Velg person</option>{% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.name }}</option>{% endfor %}</select></label>
 <label>Last opp kvitteringer <input type="file" name="files" multiple accept="image/*,application/pdf,.eml,.html,.txt" required></label>
+<div data-retailer-fields><label>Butikk / forhandler <input name="stores" list="retailer-options" maxlength="100" autocomplete="organization" placeholder="For eksempel KIWI eller Elkjøp" required></label></div>
 <button class="btn">Last opp</button></form>
 <form method="post" enctype="multipart/form-data" class="inbox-upload">
-<label>Ta bilde <input type="file" name="files" accept="image/*" capture="environment" required></label><button class="btn">Send bilde</button></form>
+<label>Hvem tilhører kvitteringen? <select name="profile_id" required><option value="" selected disabled>Velg person</option>{% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.name }}</option>{% endfor %}</select></label>
+<label>Ta bilde <input type="file" name="files" accept="image/*" capture="environment" required></label><div data-retailer-fields><label>Butikk / forhandler <input name="stores" list="retailer-options" maxlength="100" autocomplete="organization" placeholder="For eksempel KIWI eller Elkjøp" required></label></div><button class="btn">Send bilde</button></form>
+<datalist id="retailer-options">{% for retailer in retailers %}<option value="{{ retailer }}">{% endfor %}</datalist>
 <p class="mut small">Maks. 32 MB per fil, 10 filer. Originalene bevares. Bilder kan trenge tolkning eller manuell utfylling.</p>
 <p class="mut small">E-post: {{ "tilkoblet" if counts.mail.connected else "ikke tilkoblet" }}{% if counts.mail.last_ingest %} · sist mottatt {{ counts.mail.last_ingest }}{% endif %}</p>
 <nav class="chips">{% for value,label in [('needs_review','Til gjennomgang'),('confirmed','Bekreftet'),('linked','Koblet'),('discarded','Forkastet'),('all','Alle')] %}<a class="chip {{ 'on' if state==value }}" href="/inbox?state={{ value }}">{{ label }}</a>{% endfor %}</nav>
 </section>
-<section class="panel"><ul class="inbox-rows">{% for r in rows %}<li>{% if r.documents|selectattr("mimetype", "in", ["image/jpeg","image/png","image/heic","application/pdf"])|list %}<img class="inbox-thumb" loading="lazy" alt="" src="/inbox/{{ r.archive_id }}/thumbnail">{% endif %}<a href="/inbox/{{ r.archive_id }}">{{ r.store or r.intake.filename }} · {{ r.date or 'Ukjent dato' }} · {{ r.amount|nok(2) }}</a> <span class="mut">{{ r.category }} · {{ states.get(r.review.state, r.review.state) }}</span></li>{% else %}<li>Ingen kvitteringer her ennå.</li>{% endfor %}</ul></section>
+<section class="panel"><ul class="inbox-rows">{% for r in rows %}<li>{% if r.documents|selectattr("mimetype", "in", ["image/jpeg","image/png","image/heic","application/pdf"])|list %}<img class="inbox-thumb" loading="lazy" alt="" src="/inbox/{{ r.archive_id }}/thumbnail">{% endif %}<a href="/inbox/{{ r.archive_id }}">{{ r.store or r.intake.filename }} · {{ r.date or 'Ukjent dato' }} · {{ r.amount|nok(2) }}</a> <span class="mut">{{ r.profile_name or 'Default' }} · {{ r.category }} · {{ states.get(r.review.state, r.review.state) }}</span></li>{% else %}<li>Ingen kvitteringer her ennå.</li>{% endfor %}</ul></section>
+<script src="/static/inbox.js" defer></script>
 {% endblock %}

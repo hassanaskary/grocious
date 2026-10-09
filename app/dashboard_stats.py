@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import receipt_archive as archive
 
 
-def cards(t, r, c, year=None, profile_id=None, provider=None):
+def cards(t, r, c, year=None, profile_id=None, provider=None, store=None):
     year = year or datetime.now(ZoneInfo("Europe/Oslo")).year
     result = []
     for source, name, live in [("trumf", "Trumf", t), ("rema", "Rema 1000", r), ("coop", "Coop", c)]:
@@ -33,6 +33,9 @@ def cards(t, r, c, year=None, profile_id=None, provider=None):
                     # Rema line discounts are signed price adjustments; heads report positive savings.
                     item["discount"] = float(-sum((Decimal(str(v)) for v in adjustments), Decimal(0)))
             rows[(item.get("profile_id", "default"), str(x["id"]))] = item
+        if store:
+            needle = store.casefold()
+            rows = {key: item for key, item in rows.items() if needle in (item.get("store") or "").casefold()}
         # Bonus withdrawals are ledger entries, not grocery expenditure/receipts.
         purchases = [x for x in rows.values() if x.get("transaction_category") != "CONSUME"]
         dated = [x for x in purchases if (x.get("date") or "").startswith(str(year) + "-")]
@@ -44,7 +47,7 @@ def cards(t, r, c, year=None, profile_id=None, provider=None):
             return float(sum((Decimal(str(x["amount"])) for x in items), Decimal(0)))
 
         bonus_rows = [x for x in purchases if (x.get("bonus_date") or x.get("date") or "").startswith(str(year) + "-")]
-        bonus_year = live.get("bonus_year") if live.get("bonus_year_period") == year else None
+        bonus_year = live.get("bonus_year") if not store and live.get("bonus_year_period") == year else None
         bonus_basis = live.get("bonus_year_basis") if bonus_year is not None else None
         if (
             bonus_year is None
@@ -58,7 +61,7 @@ def cards(t, r, c, year=None, profile_id=None, provider=None):
         discounts = coupons = None
         savings_basis = None
         savings_note = None
-        if live.get("savings_year_period") == year:
+        if not store and live.get("savings_year_period") == year:
             discounts = live.get("discounts_year")
             coupons = live.get("coupons_year")
             savings_basis = live.get("savings_year_basis")

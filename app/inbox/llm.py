@@ -70,6 +70,49 @@ class OpenAI:
         )
 
 
+class OpenRouter:
+    id, label, vision = "openrouter", "OpenRouter · gratis", True
+    model = "openrouter/free"
+
+    @property
+    def available(self):
+        return bool(os.getenv("OPENROUTER_API_KEY"))
+
+    def interpret(self, *, text, image, mimetype, hints):
+        from openai import OpenAI as Client
+
+        content = [{"type": "text", "text": json.dumps({"text": text, "hints": hints})}]
+        for data, mime in image or []:
+            content.append(
+                {"type": "image_url", "image_url": {"url": f"data:{mime};base64," + base64.b64encode(data).decode()}}
+            )
+        response = Client(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            timeout=120,
+            max_retries=0,
+        ).chat.completions.create(
+            model=self.model,
+            max_tokens=4096,
+            messages=[{"role": "system", "content": PROMPT}, {"role": "user", "content": content}],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {"name": "receipt", "strict": True, "schema": SCHEMA},
+            },
+        )
+        choice = response.choices[0]
+        if choice.finish_reason != "stop" or not choice.message.content:
+            raise ValueError("Modellen fullførte ikke tolkingen. Regelresultatet er beholdt.")
+        usage = response.usage
+        return dict(
+            parsed=json.loads(choice.message.content),
+            raw=response.model_dump(mode="json"),
+            model=response.model or self.model,
+            input_tokens=getattr(usage, "prompt_tokens", 0) or 0,
+            output_tokens=getattr(usage, "completion_tokens", 0) or 0,
+        )
+
+
 class Claude:
     id, label, vision = "claude", "Claude", True
 
@@ -153,7 +196,7 @@ class Gateway:
         )
 
 
-REGISTRY = {p.id: p for p in (Rules(), Claude(), OpenAI(), Gateway())}
+REGISTRY = {p.id: p for p in (Rules(), Claude(), OpenAI(), OpenRouter(), Gateway())}
 
 
 def providers():
@@ -251,7 +294,7 @@ def run(rid, provider_id, model=None):
     raw = json.dumps(result["raw"], ensure_ascii=False)
     metadata = dict(
         provider=provider_id,
-        model=provider.model,
+        model=result.get("model") or provider.model,
         prompt_version="interpret-v3" if provider_id != "none" else RULES_VERSION,
         ran_at=store.now(),
         latency_ms=round((time.monotonic() - started) * 1000),

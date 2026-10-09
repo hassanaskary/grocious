@@ -11,6 +11,7 @@ from pathlib import Path
 MAX_BYTES = 32 * 1024 * 1024
 MAX_PAGES = 20
 MAX_PIXELS = 40000000
+MAX_DERIVED_BYTES = 24 * 1024 * 1024
 
 
 def _command(args):
@@ -32,14 +33,20 @@ def extract(data, filename, mimetype=""):
             src = Path(tmp) / "input.pdf"
             src.write_bytes(data)
             info = _command(["pdfinfo", str(src)]).decode(errors="replace")
-            pages = next((int(l.split(":")[1]) for l in info.splitlines() if l.startswith("Pages:")), 1)
-            if pages > MAX_PAGES:
+            page_count = next((int(l.split(":")[1]) for l in info.splitlines() if l.startswith("Pages:")), 1)
+            if page_count > MAX_PAGES:
                 raise ValueError("Maksimalt 20 PDF-sider per fil")
             text = _command(["pdftotext", "-layout", str(src), "-"]).decode(errors="replace")
-            kind, engine = ("pdf-text", "pdftotext") if len(text.strip()) >= 40 * pages else ("pdf-scan", "none")
-            if kind == "pdf-scan":
-                _command(["pdftoppm", "-scale-to", "2000", "-png", str(src), str(Path(tmp) / "page")])
-                derived.extend((p.read_bytes(), "png", "image/png") for p in sorted(Path(tmp).glob("page-*.png")))
+            kind, engine = ("pdf-text", "pdftotext") if len(text.strip()) >= 40 * page_count else ("pdf-scan", "none")
+            # Vision providers accept images rather than PDF documents. Render every page,
+            # including text PDFs, so the same page-level input works for OpenRouter.
+            _command(
+                ["pdftoppm", "-scale-to", "2000", "-jpeg", "-jpegopt", "quality=85", str(src), str(Path(tmp) / "page")]
+            )
+            page_images = [p.read_bytes() for p in sorted(Path(tmp).glob("page-*.jpg"))]
+            if len(page_images) != page_count or sum(map(len, page_images)) > MAX_DERIVED_BYTES:
+                raise ValueError("PDF-bildene blir for store for tolkning")
+            derived.extend((page, "jpg", "image/jpeg") for page in page_images)
     elif suffix == ".eml" or mimetype == "message/rfc822":
         mime, ext, kind = "message/rfc822", "eml", "eml"
         msg = BytesParser(policy=policy.default).parsebytes(data)

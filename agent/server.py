@@ -60,7 +60,7 @@ def grocious_list_receipts(
     include_inbox: bool = False,
     include_lines: bool = False,
 ) -> dict[str, Any]:
-    """List archived receipts in [start_date, end_date); use YYYY-MM-DD dates."""
+    """List archived receipts; store filters retailer, provider filters connected account."""
     return _get(
         "receipts",
         {
@@ -94,7 +94,7 @@ def grocious_spending_summary(
     group_by: str = "total",
     include_inbox: bool = False,
 ) -> dict[str, Any]:
-    """Sum archived receipts by total, month, member, provider, or store."""
+    """Sum archived receipts; group by total, month, member, connected provider, or retailer (store)."""
     return _get(
         "spending",
         {

@@ -35,6 +35,7 @@ def _receipt(source, profile_id, date, amount_minor, store, *, review=None, line
     if source == "inbox":
         record["review"] = review or {"state": "needs_review"}
         record["interpretation"] = {"confidence": 0.5}
+        record["intake"] = {"channel": "upload"}
     directory = archive.folder(source, archive_id)
     archive.atomic_json(directory / "receipt.json", record)
     return record
@@ -115,7 +116,7 @@ def test_spending_summary_excludes_inbox_by_default_and_sums_in_minor_units(tmp_
 
 
 def test_get_receipt_returns_normalized_lines_without_raw_source(tmp_path, monkeypatch):
-    default, _, _, _ = _seed(tmp_path, monkeypatch)
+    default, _, inbox_receipt, _ = _seed(tmp_path, monkeypatch)
 
     result = agent_api.get_receipt("rema", default["archive_id"])
 
@@ -123,6 +124,10 @@ def test_get_receipt_returns_normalized_lines_without_raw_source(tmp_path, monke
     assert result["profile_id"] == "default"
     assert result["source"] == "rema"
     assert "source_payload" not in result
+
+    inbox = agent_api.get_receipt("inbox", inbox_receipt["archive_id"])
+    assert inbox["provider"] is None
+    assert inbox["intake_channel"] == "upload"
 
 
 def test_agent_http_api_requires_opt_in_bearer_token(tmp_path, monkeypatch):

@@ -102,6 +102,8 @@
     <label class="sr-only" for="provider-filter">Kjede</label><select id="provider-filter" name="provider" onchange="this.form.submit()">
       <option value="">Alle kjeder</option><option value="trumf"{{ ' selected' if selected_provider == 'trumf' }}>Trumf</option><option value="rema"{{ ' selected' if selected_provider == 'rema' }}>Rema</option><option value="coop"{{ ' selected' if selected_provider == 'coop' }}>Coop</option>
     </select><noscript><button class="btn">Filtrer</button></noscript>
+    <label class="sr-only" for="retailer-filter">Butikk / forhandler</label><input id="retailer-filter" name="store" list="retailer-options" value="{{ selected_store }}" placeholder="Butikk / forhandler" onchange="this.form.submit()">
+    <datalist id="retailer-options">{% for retailer in retailers %}<option value="{{ retailer }}">{% endfor %}</datalist>
   </form></div>
   <div class="filters">
     <div class="chips" role="group" aria-label="Kjede">

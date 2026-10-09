@@ -12,7 +12,7 @@ import agent_routes
 import coop_receipt_ui
 from inbox import store as inbox_store
 from inbox.routes import bp as inbox_bp
-import demo, themes, ui, dashboard_stats, bonus_sources, offers as offer_ui, profiles
+import demo, themes, ui, dashboard_stats, bonus_sources, offers as offer_ui, profiles, retailers
 
 DATA = os.environ.get("GROCERY_DATA", "/data")
 REMA_PHONE = os.environ.get("REMA_PHONE", "")
@@ -313,6 +313,7 @@ def coop_dashboard(selected=None):
 def index():
     selected = request.args.get("member") or None
     provider = request.args.get("provider") or ""
+    selected_store = request.args.get("store", "").strip()
     member_rows = [{"id":"default","name":"Demo"}] if DEMO else profiles.all()
     inbox_rows = sorted(
         (x for x in receipt_archive.summary("inbox")["receipts"] if x.get("review", {}).get("state") not in ("linked", "discarded")),
@@ -325,9 +326,17 @@ def index():
         if provider != "rema": r={**r,"receipts":[],"count":0}
         if provider != "coop": c={**c,"receipts":[],"count":0}
     inbox_rows = [x for x in inbox_rows if not selected or (x.get("profile_id") or "default")==selected]
+    if selected_store:
+        needle = selected_store.casefold()
+        inbox_rows = [x for x in inbox_rows if needle in (x.get("store") or "").casefold()]
+        for data in (t, r, c):
+            data["receipts"] = [x for x in data.get("receipts", []) if needle in (x.get("store") or "").casefold()]
+            if "count" in data:
+                data["count"] = len(data["receipts"])
     return render_template("index.html", t=t, r=r, c=c, members=member_rows, selected_member=selected, selected_provider=provider,
+      selected_store=selected_store, retailers=retailers.all(),
       offer_cards=[o for source, data in [("rema",r),("trumf",t),("coop",c)] for o in offer_ui.cards(source,data.get("offers"))],
-      stats=dashboard_stats.cards(t,r,c,profile_id=selected,provider=provider or None), inbox=inbox_store.summary(), inbox_rows=inbox_rows, demo=DEMO, **ui.context(t, r, c))
+      stats=dashboard_stats.cards(t,r,c,profile_id=selected,provider=provider or None,store=selected_store or None), inbox=inbox_store.summary(), inbox_rows=inbox_rows, demo=DEMO, **ui.context(t, r, c))
 
 @app.get("/offers/<source>/<oid>")
 def offer_detail(source, oid):

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Kvittering delt til Grocious{% endblock %}
+{% block content %}
+<section class="panel">
+<h1>Fullfør opplasting</h1>
+<p>Velg hvem kvitteringen tilhører og hvilken butikk den er fra før den legges i husholdningsarkivet.</p>
+<form method="post" class="inbox-fields">
+<label>Hvem tilhører kvitteringen? <select name="profile_id" required><option value="" selected disabled>Velg person</option>{% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.name }}</option>{% endfor %}</select></label>
+{% for item in staged.files %}<label>Butikk / forhandler · {{ item.filename }} <input name="stores" list="retailer-options" maxlength="100" autocomplete="organization" placeholder="For eksempel KIWI eller Elkjøp" required></label>{% endfor %}
+<datalist id="retailer-options">{% for retailer in retailers %}<option value="{{ retailer }}">{% endfor %}</datalist>
+<button class="btn">Legg i innboksen</button>
+</form>
+<p class="mut small">Filer som ikke sendes videre slettes automatisk etter én time.</p>
+</section>
+{% endblock %}

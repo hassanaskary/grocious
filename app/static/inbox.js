@@ -1,4 +1,22 @@
 'use strict';
+document.querySelectorAll('.inbox-upload').forEach(form => {
+  const files = form.querySelector('input[type="file"][name="files"]');
+  const fields = form.querySelector('[data-retailer-fields]');
+  if (!files || !fields) return;
+  files.addEventListener('change', () => {
+    fields.replaceChildren();
+    Array.from(files.files).forEach(file => {
+      const label = document.createElement('label');
+      label.append(document.createTextNode('Butikk / forhandler · ' + file.name));
+      const input = document.createElement('input');
+      input.type = 'text'; input.name = 'stores'; input.required = true;
+      input.maxLength = 100; input.autocomplete = 'organization';
+      input.placeholder = 'For eksempel KIWI eller Elkjøp';
+      input.setAttribute('list', 'retailer-options');
+      label.append(input); fields.append(label);
+    });
+  });
+});
 const editor = document.querySelector('[data-line-editor]');
 if (editor) {
   const fields = ['name', 'qty', 'unit', 'amount', 'discount', 'kind'];

@@ -65,19 +65,26 @@ def test_image_and_pdf():
     c = Canvas(pdf)
     c.drawString(30, 750, "KIWI Testbutikk 07.09.2026 Vare 42,00 TOTALT 42,00 NOK")
     c.save()
-    assert extract(pdf.getvalue(), "text.pdf")["kind"] == "pdf-text"
+    text_pdf = extract(pdf.getvalue(), "text.pdf")
+    assert text_pdf["kind"] == "pdf-text" and len(text_pdf["derived"]) == 1
+    assert text_pdf["derived"][0][2] == "image/jpeg"
     pdf = io.BytesIO()
     c = Canvas(pdf)
     c.rect(10, 10, 20, 20)
     c.showPage()
     c.save()
-    assert extract(pdf.getvalue(), "scan.pdf")["kind"] == "pdf-scan"
+    scan_pdf = extract(pdf.getvalue(), "scan.pdf")
+    assert scan_pdf["kind"] == "pdf-scan" and len(scan_pdf["derived"]) == 1
 
 
 def test_routes_states_exports(client, inbox_data):
     response = client.post(
         "/inbox",
-        data={"files": (io.BytesIO(b"KIWI Test\n07.09.2026\nTOTALT 42,00 NOK"), "x.txt")},
+        data={
+            "profile_id": "default",
+            "store": "KIWI",
+            "files": (io.BytesIO(b"KIWI Test\n07.09.2026\nTOTALT 42,00 NOK"), "x.txt"),
+        },
         headers={"Accept": "application/json"},
     )
     assert response.status_code == 201
@@ -104,9 +111,93 @@ def test_invalid_file_and_corrections(client, inbox_data):
 def test_pwa(client):
     response = client.get("/manifest.webmanifest")
     assert response.mimetype == "application/manifest+json"
-    assert response.json["share_target"]["action"] == "/inbox"
+    assert response.json["share_target"]["action"] == "/inbox/share"
     assert {i["sizes"] for i in response.json["icons"]} == {"192x192", "512x512"}
     assert b"caches." not in client.get("/sw.js").data
+
+
+def test_manual_upload_requires_household_and_retailer(client, inbox_data):
+    page = client.get("/inbox").get_data(as_text=True)
+    assert 'name="profile_id" required' in page
+    assert 'name="stores" list="retailer-options"' in page
+    rejected = client.post(
+        "/inbox",
+        data={"files": (io.BytesIO(b"KIWI\nTOTALT 42,00 NOK"), "x.txt")},
+    )
+    assert rejected.status_code == 400
+
+    response = client.post(
+        "/inbox",
+        data={
+            "profile_id": "default",
+            "stores": ["Elkjøp", "Power"],
+            "files": [
+                (io.BytesIO(b"KIWI\n07.09.2026\nTOTALT 42,00 NOK"), "x.txt"),
+                (io.BytesIO(b"POWER\n07.09.2026\nTOTALT 55,00 NOK"), "y.txt"),
+            ],
+        },
+        headers={"Accept": "application/json"},
+    )
+    assert response.status_code == 201
+    receipts = [archive.read_receipt("inbox", row["rid"]) for row in response.json]
+    assert [receipt["profile_id"] for receipt in receipts] == ["default", "default"]
+    assert [receipt["profile_name"] for receipt in receipts] == ["Default", "Default"]
+    assert [receipt["store"] for receipt in receipts] == ["Elkjøp", "Power"]
+    from retailers import all as retailer_names
+
+    assert {"Elkjøp", "Power"} <= set(retailer_names())
+
+
+def test_pwa_share_waits_for_profile_and_retailer(client, inbox_data):
+    response = client.post(
+        "/inbox/share",
+        data={"files": (io.BytesIO(b"Receipt\nTOTALT 50,00 NOK"), "receipt.txt")},
+    )
+    assert response.status_code == 303
+    staged_url = response.headers["Location"]
+    assert client.get(staged_url).status_code == 200
+    response = client.post(staged_url, data={"profile_id": "default", "stores": ["Power"]})
+    assert response.status_code == 303
+    rid = response.headers["Location"].split("/")[-1]
+    receipt = archive.read_receipt("inbox", rid)
+    assert receipt["profile_id"] == "default"
+    assert receipt["store"] == "Power"
+    assert receipt["intake"]["channel"] == "share"
+
+
+def test_openrouter_sends_derived_images_with_structured_output(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from inbox import llm
+
+    calls = {}
+
+    class Response:
+        choices = [SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content='{"store":"Power"}'))]
+        model = "a-provider/vision-model"
+        usage = SimpleNamespace(prompt_tokens=20, completion_tokens=8)
+
+        def model_dump(self, mode):
+            return {"model": self.model}
+
+    def create(**kwargs):
+        calls.update(kwargs)
+        return Response()
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=lambda **kwargs: client))
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+
+    result = llm.OpenRouter().interpret(
+        text="receipt text", image=[(b"page-image", "image/jpeg")], mimetype=None, hints={}
+    )
+
+    assert result["parsed"] == {"store": "Power"}
+    assert result["model"] == "a-provider/vision-model"
+    assert result["input_tokens"] == 20 and result["output_tokens"] == 8
+    assert calls["model"] == "openrouter/free"
+    assert calls["response_format"]["json_schema"]["strict"] is True
+    assert calls["messages"][1]["content"][1]["image_url"]["url"].startswith("data:image/jpeg;base64,")
 
 
 def test_interpretations(client, inbox_data, monkeypatch):
@@ -114,7 +205,7 @@ def test_interpretations(client, inbox_data, monkeypatch):
     import copy
     import json
 
-    for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROCIOUS_LLM_LITELLM_URL"):
+    for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "GROCIOUS_LLM_LITELLM_URL"):
         monkeypatch.delenv(key, raising=False)
     assert [p["id"] for p in llm.providers() if p["available"]] == ["none"]
     rid = store.ingest(b"KIWI Test\n07.09.2026\nTOTALT 42,00 NOK")["rid"]

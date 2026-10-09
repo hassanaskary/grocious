@@ -44,6 +44,7 @@ paths:
         - name: provider
           in: query
           schema: {type: string, enum: [coop, rema, trumf]}
+          description: Filter by connected receipt provider; manual inbox records have no connected provider.
         - name: source
           in: query
           description: Archive source; set include_inbox=true to search inbox receipts
@@ -225,13 +226,14 @@ components:
       required: [source, provider, id, archive_id, date, store, amount_minor, currency, profile_id, profile_name]
       properties:
         source: {type: string, enum: [coop, rema, trumf, inbox]}
-        provider: {type: [string, 'null']}
+        provider: {type: [string, 'null'], description: Connected receipt provider; null for inbox receipts}
+        intake_channel: {type: [string, 'null'], description: For inbox receipts, how Grocious received the document}
         id: {type: string}
         archive_id: {type: string}
         date: {type: [string, 'null'], format: date}
         time: {type: [string, 'null']}
         timezone: {type: string}
-        store: {type: [string, 'null']}
+        store: {type: [string, 'null'], description: Retailer or merchant name}
         amount: {type: [number, 'null']}
         amount_minor: {type: [integer, 'null']}
         currency: {type: [string, 'null']}

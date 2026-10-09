@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Manual receipt uploads now require a household profile and retailer; new retailer names are saved for reuse.
+- PDF pages are rendered as vision images, and configured OpenRouter accounts can interpret receipts with `openrouter/free`.
+- Agent receipt results distinguish connected providers from manual/email/share intake channels.
+
 - Household profiles can connect separate Trumf, Rema and Coop accounts to one shared receipt archive.
 - Dashboard, statistics and monthly exports aggregate household spending by default, with member and provider filters.
 - Receipt records retain the member and provider that supplied them; each profile keeps its own login state.

@@ -53,6 +53,12 @@ receipt keeps the member and provider that supplied it, so its account provenanc
 Because checkout uses one loyalty account, each store receipt is imported through the account
 that was scanned and contributes once to the household total.
 
+Manual upload batches require a household member, and each file requires its retailer. The retailer is the
+merchant on the receipt (for example, KIWI, Elkjøp or Power); connected provider/account (such as Trumf
+or Coop) and intake channel (such as web upload, mobile share or email) are separate provenance fields.
+The retailer picker learns new names and shares them across the household. The household dashboard
+aggregates spending by default; member, retailer and provider remain available for filtering.
+
 Run the login command for each member and provider. Non-default members are prompted for
 their credentials and the one-time SMS code, even when the `.env` contains the Default
 member's values. Passwords are not saved. For example:
@@ -105,9 +111,9 @@ backfill, and can be resumed. The first sync for an account backfills its availa
 | `GET /api/export/<YYYY-MM>.json` | Monthly household receipts, including pending/confirmed inbox records; linked/discarded inbox records excluded. Add `?member=<profile-id>` or `?provider=<chain>` to filter, and `?lines=1` for item lines |
 | `GET /api/export/<YYYY-MM>.csv` | Same data as CSV — one row per receipt, or per item with `?lines=1`; accepts the same member/provider filters |
 | `GET /api/agent/v1/household` | Opt-in, token-protected profile, archive coverage, and sync status |
-| `GET /api/agent/v1/receipts` | Date-bounded, paginated receipt search; supports member, provider, archive source, store, inbox, and line filters |
+| `GET /api/agent/v1/receipts` | Date-bounded, paginated receipt search; supports member, connected provider, archive source, retailer (`store`), inbox, and line filters |
 | `GET /api/agent/v1/receipts/<source>/<archive_id>` | One normalized archived receipt with line items and provenance |
-| `GET /api/agent/v1/spending` | Date-bounded sums grouped by household, month, member, provider, or store; totals remain separate by currency |
+| `GET /api/agent/v1/spending` | Date-bounded sums grouped by household, month, member, connected provider, or retailer (`store`); totals remain separate by currency |
 | `GET /api/archive/<source>` | Archive index: count, `archive_id`s, `documents[]` with checksums |
 | `GET /archive/<source>` | Browsable archive, independent of a live login |
 | `GET /archive/<source>/<rid>` | One purchase: normalised view plus raw JSON |

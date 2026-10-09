@@ -89,7 +89,8 @@ def _current_record(source, row, include_lines, members=None):
     head = record.get("source", {}).get("head", {}) if isinstance(record.get("source"), dict) else {}
     result = {
         "source": source,
-        "provider": record.get("chain") if source == "inbox" else source,
+        "provider": None if source == "inbox" else source,
+        "intake_channel": (record.get("intake") or {}).get("channel") if source == "inbox" else "provider_api",
         "id": str(record.get("id", row.get("id", ""))),
         "archive_id": record["archive_id"],
         "date": record.get("date"),

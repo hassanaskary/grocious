@@ -1,9 +1,16 @@
 # Receipt inbox
 
-Upload at `/inbox`, share into the installed PWA, or enable the optional IMAP IDLE worker.
-PDF text, plain text, HTML, EML attachments and JPEG/PNG/WebP/HEIC are supported. Photos and scanned
-PDFs retain a display/vision derivative; deterministic rules cannot read image pixels. OCR is not
-implemented yet. `GROCIOUS_OCR=none` documents that current limitation.
+Upload at `/inbox`, share into the installed PWA, or enable the optional IMAP IDLE worker. Web uploads
+require a household profile, and each file requires a retailer. Retailer fields suggest names already
+used in the household archive and accept new names; newly selected retailers are saved for later uploads
+in `GROCERY_DATA/retailers.json`. A retailer is the merchant, such as KIWI, Elkjøp or Power. It is separate from
+the connected receipt provider/account (such as Rema, Trumf or Coop) and the intake channel (such as
+web upload, mobile share or email).
+
+PDF text, plain text, HTML, EML attachments and JPEG/PNG/WebP/HEIC are supported. PDF text is extracted
+locally and every page is also rendered as a bounded JPEG vision input (maximum 20 pages and 24 MiB
+combined derived images). Photos and scanned PDFs retain display/vision derivatives; deterministic
+rules cannot read image pixels. OCR is not implemented. `GROCIOUS_OCR=none` documents that limitation.
 
 ## Run
 
@@ -12,21 +19,32 @@ jsonschema and IMAPClient. Keep the existing authentication reverse proxy.
 Set `client_max_body_size 321m` on `/inbox` to allow ten 32 MiB files plus multipart overhead;
 a 32m proxy limit restricts the entire batch. The application also rejects more than 20 PDF pages.
 
-Install from HTTPS in Chrome/Vanadium, then share a PDF/photo to grocious. The service worker uses
-network-only fetching; it stores no authenticated receipt pages offline. PWA icons wrap the approved
-wordmark, pending a dedicated icon design. A share requires a valid proxy login cookie; phone acceptance
-must be checked after deployment with the actual authentication proxy.
+Install from HTTPS in Chrome/Vanadium, then share a PDF/photo to grocious. Shared files first wait in a
+private staging folder while you choose the profile and retailer; unfinished shares expire after one hour
+and are cleaned up on a later share or inbox visit. The service worker uses network-only fetching; it stores
+no authenticated receipt pages offline.
+A share requires a valid proxy login cookie; phone acceptance must be checked after deployment with the
+actual authentication proxy.
 
 ## Interpretation
 
-Default `GROCIOUS_LLM_DEFAULT=none`, `GROCIOUS_LLM_AUTO=0`. Buttons are disabled unless the provider is
-configured. Set keys in the private runtime `.env`, never the repository. Only this receipt's text,
-derived images, and limited intake hints are sent. Gateway is text-only; its EU routing is an operator
-configuration, not a guarantee made by this application. SDK retries are disabled. Manual runs are
-synchronous (up to 120 seconds): allow an appropriate reverse-proxy read timeout on the interpret route.
+Default `GROCIOUS_LLM_DEFAULT=none`, `GROCIOUS_LLM_AUTO=0`. Interpretation is a manual action; buttons
+are disabled unless the provider is configured. Set keys in the private runtime `.env`, never the
+repository. OpenRouter is available by setting `OPENROUTER_API_KEY`; it calls `openrouter/free` using
+the OpenAI-compatible API. The router selects a free model that supports request features such as image
+input and structured outputs, so the actual model can vary. Free-plan request limits and model
+availability can change. PDF pages are sent as images. Only this receipt's text, derived images, and
+limited intake hints are sent. OpenRouter forwards requests to model providers with varying data
+practices; interpretation is user-triggered and a notice appears beside the OpenRouter action. Gateway
+is text-only; its EU routing is an operator configuration, not a guarantee made by this application.
+SDK retries are disabled. Manual runs are synchronous (up to 120 seconds): allow an appropriate
+reverse-proxy read timeout on the interpret route.
 
 Provider defaults are configurable: `claude-opus-5` and `gpt-6-astra`. Usage token counts are shown;
-monetary cost is not estimated. See the official [OpenAI structured output contract](https://developers.openai.com/api/docs/guides/structured-outputs),
+OpenRouter returns the routed model name when available. Monetary cost is not estimated. See the official
+[OpenRouter Free Models Router](https://openrouter.ai/openrouter/free),
+[OpenRouter privacy policy](https://openrouter.ai/privacy/),
+[OpenAI structured output contract](https://developers.openai.com/api/docs/guides/structured-outputs),
 [OpenAI image input contract](https://developers.openai.com/api/docs/guides/images-vision), and
 [Claude structured output contract](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).
 These adapters use the official SDKs and a shared, locally validated JSON schema.
@@ -86,8 +104,8 @@ There is currently no unlink UI; this is stated beside the linking controls.
 Email intake still creates separate attachment candidates. A single email may contain several purchases;
 grouped intake with selectable interpretation sources and a split action is not implemented yet.
 
-`/api/export/<ym>.json` and CSV include pending/confirmed inbox records, with review state, confidence,
-category, currency and archive ID; discarded and linked inbox records are excluded. CSV appends these
+`/api/export/<ym>.json` and CSV include pending/confirmed inbox records, with profile, retailer, review
+state, confidence, category, currency and archive ID; discarded and linked inbox records are excluded. CSV appends these
 metadata columns after its legacy columns. The combined JSON total is explicitly NOK-only; individual
 non-NOK receipts retain their own currency and amount. The inbox card groups totals by currency.
 EML and its attachments each remain separate intake records; review possible duplication of body/attachment.

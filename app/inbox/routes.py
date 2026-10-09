@@ -1,12 +1,19 @@
 """Inbox web routes. No remote URL fetching and no active mail/HTML rendering."""
 
 import io
+import re
+import shutil
+import time
+import uuid
 from datetime import datetime
 import json
+from pathlib import Path
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, send_file
 from werkzeug.exceptions import RequestEntityTooLarge
 import receipt_archive as archive
 import themes
+import profiles
+import retailers
 from . import store, llm, linking
 from .extract import MAX_BYTES
 from .heuristics import CATEGORIES
@@ -33,6 +40,8 @@ def context():
         demo=webgui.DEMO,
         categories=CATEGORIES,
         providers=llm.providers(),
+        profiles=([{"id": "default", "name": "Demo"}] if webgui.DEMO else profiles.all()),
+        retailers=retailers.all(),
         states={
             "needs_review": "Til gjennomgang",
             "confirmed": "Bekreftet",
@@ -48,7 +57,79 @@ def context():
             "line_total_difference": "Varelinjene summerer ikke til totalen",
             "llm_total_not_in_text": "Modellens totalbeløp finnes ikke i teksten",
         },
+        intake_channels={"upload": "Opplasting", "share": "Delt fra mobil", "mail": "E-post", "api": "API"},
     )
+
+
+def _selected_profile(form):
+    profile_id = form.get("profile_id", "").strip()
+    profile = profiles.find(profile_id)
+    if not profile:
+        raise ValueError("Velg hvem i husholdningen kvitteringen tilhører.")
+    return profile
+
+
+def _selected_retailers(form, count):
+    names = form.getlist("stores")
+    if not names and form.get("store") is not None:
+        names = [form.get("store", "")]
+    if len(names) != count:
+        raise ValueError("Velg en butikk for hver kvittering.")
+    return [retailers.normalize(name) for name in names]
+
+
+def _staging_root():
+    path = profiles.root() / "inbox-staging"
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return path
+
+
+def _prune_staging():
+    root = _staging_root()
+    cutoff = time.time() - 3600
+    for path in root.iterdir():
+        try:
+            if path.is_dir() and path.stat().st_mtime < cutoff:
+                shutil.rmtree(path)
+        except OSError:
+            continue
+
+
+def _stage(payloads, channel, user_agent):
+    _prune_staging()
+    token = uuid.uuid4().hex
+    folder = _staging_root() / token
+    folder.mkdir(mode=0o700)
+    files = []
+    for number, (data, filename, mimetype) in enumerate(payloads):
+        stored = f"{number:02d}.bin"
+        (folder / stored).write_bytes(data)
+        files.append({"path": stored, "filename": Path(filename).name, "mimetype": mimetype})
+    archive.atomic_json(
+        folder / "metadata.json",
+        {"channel": channel, "user_agent": user_agent, "files": files, "created_at": time.time()},
+    )
+    return token
+
+
+def _load_stage(token):
+    if not re.fullmatch(r"[a-f0-9]{32}", token):
+        abort(404)
+    folder = _staging_root() / token
+    try:
+        metadata = json.loads((folder / "metadata.json").read_text())
+        if time.time() - metadata["created_at"] > 3600:
+            shutil.rmtree(folder, ignore_errors=True)
+            abort(404)
+        payloads = []
+        for item in metadata["files"]:
+            data = (folder / item["path"]).read_bytes()
+            if not data or len(data) > MAX_BYTES:
+                abort(404)
+            payloads.append((data, item["filename"], item["mimetype"]))
+        return folder, metadata, payloads
+    except (OSError, ValueError, KeyError, TypeError):
+        abort(404)
 
 
 @bp.errorhandler(ValueError)
@@ -78,16 +159,27 @@ def queue():
             payloads = [(text.encode(), "shared.txt", "text/plain")]
         if any(not b or len(b) > MAX_BYTES for b, _, _ in payloads):
             raise ValueError("Filen er tom eller større enn 32 MB")
-        intake = dict(
-            channel="share" if any(k in request.form for k in ("title", "text", "url")) else "upload",
-            user_agent=request.user_agent.string[:500],
-        )
-        results = [store.ingest(data, name, mime, intake) for data, name, mime in payloads]
+        profile = _selected_profile(request.form)
+        store_names = _selected_retailers(request.form, len(payloads))
+        is_share = any(k in request.form for k in ("title", "text", "url"))
+        channel = "share" if is_share else "upload"
+        results = []
+        for (data, name, mime), store_name in zip(payloads, store_names):
+            intake = dict(
+                channel=channel,
+                profile_id=profile["id"],
+                profile_name=profile["name"],
+                store=store_name,
+                user_agent=request.user_agent.string[:500],
+            )
+            results.append(store.ingest(data, name, mime, intake))
+            retailers.add(store_name)
         if wants_json():
             return jsonify(results), 200 if all(r["duplicate"] for r in results) else 201
         return redirect("/inbox/" + results[0]["rid"] if len(results) == 1 else "/inbox?new=" + str(len(results)), 303)
     import webgui
 
+    _prune_staging()
     if webgui.DEMO and not webgui.app.testing:
         from .demo import seed
 
@@ -102,6 +194,51 @@ def queue():
         reverse=True,
     )
     return render_template("inbox_list.html", rows=rows, counts=store.summary(), state=state, **context())
+
+
+@bp.route("/inbox/share", methods=["GET", "POST"])
+def share():
+    if request.method == "POST":
+        files = request.files.getlist("files")
+        if len(files) > 10:
+            raise ValueError("Maksimalt 10 filer")
+        payloads = [(f.read(MAX_BYTES + 1), f.filename or "receipt", f.mimetype) for f in files if f.filename]
+        if not payloads:
+            text = "\n".join(request.form.get(k, "") for k in ("title", "text", "url")).strip()
+            if not text:
+                raise ValueError("Del en fil eller tekst")
+            payloads = [(text.encode(), "shared.txt", "text/plain")]
+        if any(not data or len(data) > MAX_BYTES for data, _, _ in payloads):
+            raise ValueError("Filen er tom eller større enn 32 MB")
+        token = _stage(payloads, "share", request.user_agent.string[:500])
+        return redirect(f"/inbox/share/{token}", 303)
+    return redirect("/inbox", 303)
+
+
+@bp.route("/inbox/share/<token>", methods=["GET", "POST"])
+def complete_share(token):
+    folder, metadata, payloads = _load_stage(token)
+    if request.method == "POST":
+        profile = _selected_profile(request.form)
+        store_names = _selected_retailers(request.form, len(payloads))
+        results = []
+        for (data, name, mime), store_name in zip(payloads, store_names):
+            intake = dict(
+                channel="share",
+                profile_id=profile["id"],
+                profile_name=profile["name"],
+                store=store_name,
+                user_agent=metadata.get("user_agent", ""),
+            )
+            results.append(store.ingest(data, name, mime, intake))
+            retailers.add(store_name)
+        shutil.rmtree(folder, ignore_errors=True)
+        return redirect("/inbox/" + results[0]["rid"] if len(results) == 1 else "/inbox", 303)
+    return render_template(
+        "inbox_share.html",
+        staged=metadata,
+        **context(),
+    )
 
 
 @bp.get("/inbox/<rid>")

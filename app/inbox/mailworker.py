@@ -92,7 +92,14 @@ def session():
 def failure_trace():
     """Keep exception type, reason and stack while redacting configured credentials."""
     detail = traceback.format_exc()
-    for key in ("IMAP_PASSWORD", "IMAP_USER", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROCIOUS_LLM_LITELLM_KEY"):
+    for key in (
+        "IMAP_PASSWORD",
+        "IMAP_USER",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
+        "GROCIOUS_LLM_LITELLM_KEY",
+    ):
         value = os.getenv(key)
         if value:
             detail = detail.replace(value, "[redacted]")
