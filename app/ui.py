@@ -1,19 +1,29 @@
 """Presentation helpers: NOK formatting (as in Porteføljen), months/chains for the filters, themes."""
 
 import datetime
+from flask import has_request_context, request
 
 import themes
 
 NBSP = " "
 MONTHS = ["jan", "feb", "mar", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "des"]
+MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def language():
+    return request.cookies.get("grocious_language", "en") if has_request_context() else "en"
 
 
 def num(value, decimals=0, sign=False):
     if value is None:
         return "–"
     v = float(value)
-    s = f"{abs(v):,.{decimals}f}".replace(",", NBSP).replace(".", ",")
-    if float(s.replace(NBSP, "").replace(",", ".")) == 0:
+    if language() == "en":
+        s = f"{abs(v):,.{decimals}f}"
+    else:
+        s = f"{abs(v):,.{decimals}f}".replace(",", NBSP).replace(".", ",")
+    normalized = s.replace(NBSP, "").replace(",", "") if language() == "en" else s.replace(NBSP, "").replace(",", ".")
+    if float(normalized) == 0:
         return s
     if v < 0:
         return "−" + s
@@ -21,7 +31,9 @@ def num(value, decimals=0, sign=False):
 
 
 def nok(value, decimals=0, sign=False):
-    return "–" if value is None else num(value, decimals, sign) + NBSP + "kr"
+    if value is None:
+        return "–"
+    return num(value, decimals, sign) + (NBSP + "NOK" if language() == "en" else NBSP + "kr")
 
 
 def day(value):
@@ -31,7 +43,7 @@ def day(value):
         d = datetime.date.fromisoformat(str(value)[:10])
     except ValueError:
         return str(value)
-    return d.strftime("%d.%m.%Y")
+    return d.strftime("%d/%m/%Y" if language() == "en" else "%d.%m.%Y")
 
 
 def dt(value):
@@ -44,7 +56,8 @@ def dt(value):
 
 def month_label(ym):
     y, m = ym.split("-")
-    return f"{MONTHS[int(m) - 1]} {y}"
+    names = MONTHS_EN if language() == "en" else MONTHS
+    return f"{names[int(m) - 1]} {y}"
 
 
 FILTERS = {"nok": nok, "num": num, "day": day, "dt": dt, "month_label": month_label}

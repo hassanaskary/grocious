@@ -1,0 +1,200 @@
+/* English is the default. Norwegian source text is retained for the Norsk option. */
+(function () {
+  "use strict";
+  var translations = {
+    "Innboks":"Inbox", "Dine lenker":"Your links", "Innstillinger":"Settings", "Språk":"Language",
+    "Lys":"Light", "Mørk":"Dark", "GROCIOUS_DEMO=1: anonymiserte fixtures, ingen ekte tokens":"GROCIOUS_DEMO=1: anonymized fixtures, no real tokens",
+    "Velg språk":"Choose language", "Utseende":"Appearance", "Tema (husk i nettleseren)":"Theme (saved in this browser)",
+    "Tema":"Theme", "Auto (system)":"Auto (system)", "Lenkeliste":"Link list", "Vis lenker i toppfeltet":"Show links in header",
+    "Legg til lenke":"Add link", "Lagre":"Save", "Husholdning":"Household", "Lagre navn":"Save name",
+    "Ingen kontoer koblet til":"No accounts connected", "Legg til medlem":"Add member", "Navn":"Name", "Legg til":"Add",
+    "Etterpå kobler medlemmet kontoene sine med":"The member can connect their accounts using",
+    "Live oversikter caches 5 min · kvitteringsarkiv lagres lokalt":"Live summaries are cached for 5 min · receipt archive is stored locally",
+    "eksport":"export", "Brukt i":"Spent in", "Opptjent bonus i":"Bonus earned in", "Ikke tilgjengelig":"Not available",
+    "Beregnet fra kvitteringer":"Calculated from receipts", "Sum av kjedens medlemstall":"Sum of retailer-reported benefits",
+    "Oppgitt av kjeden":"Reported by retailer", "sist hentet":"last retrieved", "Kvitteringer":"Receipts",
+    "Mer informasjon":"More information", "Brukt i hele historikken":"Spent over all time", "Saldo på kundekonto":"Loyalty account balance",
+    "Oppgitt av deg":"Reported by you", "Beregnet fra startsaldo + kvitteringer":"Calculated from opening balance + receipts",
+    "Disponibelt på kundekonto":"Available in loyalty account", "Opptjent bonus totalt":"Total bonus earned",
+    "Tilbud og rabatter i":"Offers and discounts in", "samlet rabatt":"combined discount", "Kuponger i":"Coupons in",
+    "Ikke spesifisert":"Not specified", "Historikk fra":"History from", "Siste kjøp":"Latest purchase",
+    "Forbruk og antall er beregnet fra tilgjengelige kjøp. Bonusuttak er ikke medregnet. Kontosaldo og opptjent bonus er forskjellige tall.":"Spending and counts are calculated from available purchases. Bonus withdrawals are not included. Account balance and earned bonus are different figures.",
+    "Coops MedlemsKupp og kuponger vises hver for seg. Opptjent kjøpeutbytte/bonus er ikke prisrabatt.":"Coop Member Deals and coupons are shown separately. Earned member dividends/bonus are not price discounts.",
+    "Coops årsoversikt: kjøpeutbytte og bonus til medlemskonto. Prisrabatter og kuponger er ikke bonusopptjening.":"Coop annual summary: member dividends and bonus paid to the loyalty account. Price discounts and coupons are not bonus earnings.",
+    "Coop viser medlemskontoen via separat innlogging på secure.coop.no. Saldo er ikke bekreftet i app-API-et.":"Coop shows the loyalty account after a separate sign-in at secure.coop.no. The balance is not confirmed by the app API.",
+    "Kjøpeutbytte og kortbonus telles samlet; prisrabatter er ikke med. Dette er beregnet saldo inkludert opptjent bonus, ikke bekreftet disponibelt beløp. Ved uttak eller andre kontobevegelser må startsaldoen oppdateres.":"Member dividends and card bonus are counted together; price discounts are excluded. This is a calculated balance including earned bonus, not a confirmed available balance. Update the opening balance after withdrawals or other account activity.",
+    "Årsbonusen er summen av bonusbeløpene på tilgjengelige kvitteringer. Kilden har ikke gitt en bekreftet kalenderårssum; bonus utenfor kvitteringene kan mangle.":"The annual bonus is the sum of bonus amounts on available receipts. The source has not provided a confirmed calendar-year total; bonuses outside the receipts may be missing.",
+    "Opptjent bonus gjennom all tid er ikke bekreftet fra kilden.":"Lifetime bonus earnings have not been confirmed by the source.",
+    "Oppdatert bonussaldo er ikke tilgjengelig fra denne kilden.":"An up-to-date bonus balance is not available from this source.",
+    "Kunne ikke oppdatere live-data. Arkiverte kjøp vises.":"Could not refresh live data. Archived purchases are shown.",
+    "Tilbud & kuponger":"Offers & coupons", "Skjul tilbud":"Hide offer", "Se detaljer og vilkår →":"View details and terms →",
+    "Aktivert":"Activated", "Aktiver ·":"Activate ·", "Ingen tilbud å vise akkurat nå.":"No offers to show right now.",
+    "Vis skjulte tilbud igjen":"Show hidden offers again", "Andre kvitteringer":"Other receipts", "til gjennomgang":"to review",
+    "Sorter andre kvitteringer":"Sort other receipts", "Dato · nyeste først":"Date · newest first", "Dato · eldste først":"Date · oldest first",
+    "Butikk · A–Å":"Store · A–Z", "Butikk · Å–A":"Store · Z–A", "Beløp · høyest først":"Amount · highest first",
+    "Beløp · lavest først":"Amount · lowest first", "Innboks":"Inbox", "Ukjent butikk":"Unknown store", "Ukjent dato":"Unknown date",
+    "Til gjennomgang":"Needs review", "Laster varelinjer …":"Loading line items …", "Åpne / rediger bilag":"Open / edit receipt",
+    "laget PDF":"generated PDF", "Ingen kvitteringer lagt inn ennå.":"No receipts added yet.", "← Forrige 20":"← Previous 20", "Neste 20 →":"Next 20 →",
+    "Åpne innboks / legg til kvittering":"Open inbox / add receipt", "Filtrer husholdningsvisning":"Filter household view", "Medlem":"Member",
+    "Hele husholdningen":"Entire household", "Kjede":"Retailer", "Alle kjeder":"All retailers", "Butikk / forhandler":"Store / retailer",
+    "Sorter kvitteringer":"Sort receipts", "Alle":"All", "Bonus · høyest først":"Bonus · highest first", "Rabatt · høyest først":"Discount · highest first",
+    "kontrollavvik":"validation issue", "Detaljer":"Details", "Original PDF":"Original PDF", "Originalfiler":"Original files",
+    "Ingen kvitteringer for valget.":"No receipts match this selection.", "Arkiv med originalfiler:":"Archive with original files:",
+    "Coop importstatus":"Coop import status", "← Forrige 50":"← Previous 50", "Neste 50 →":"Next 50 →", "Viser ":"Showing ", " av ":" of ",
+    "Ingen treff":"No matches", "Sum ":"Total ", " · bonus ":" · bonus ", " · rabatt ":" · discount ", " kvitteringer":" receipts",
+    "Periode":"Period", "Denne måneden":"This month", "Forrige måned":"Previous month", "Hittil i år":"Year to date",
+    "Velg måned eller år":"Select month or year", "Velg måned / år":"Select month / year", "Hele ":"All of ",
+    "Registrering i Beancount":"Beancount registration", "Alle registreringsstatuser":"All registration statuses", "Ikke registrert":"Not registered",
+    "Registrert i Beancount":"Registered in Beancount", "Endret etter registrering":"Changed since registration",
+    "Bilaget må være i arkivet før det kan merkes registrert.":"The receipt must be in the archive before it can be marked as registered.",
+    "Beancount-referanse (valgfri)":"Beancount reference (optional)", "Beancount-referanse":"Beancount reference",
+    "Angre registrering":"Undo registration", "Marker endringen som ført":"Mark change as recorded", "Oppdater referanse":"Update reference",
+    "Manuell huskelapp — ingen bankavstemming eller endring i eksporten.":"Manual reminder — no bank reconciliation or changes to the export.",
+    "Registreringsstatus kunne ikke lastes. Last siden på nytt.":"Could not load registration status. Reload the page.", "Kunne ikke hente registreringsstatus":"Could not load registration status",
+    "Lagring feilet":"Save failed", "Lagrer …":"Saving …", "Lagrer navn …":"Saving name …", "Kunne ikke legge til medlem.":"Could not add member.",
+    "Kunne ikke endre navn.":"Could not change name.", "Navnet er lagret.":"Name saved.", "Ingen varelinjer.":"No line items.",
+    "Sum":"Total", "Kunne ikke hente varelinjer":"Could not load line items", "Kunne ikke lagre lenkene.":"Could not save links.", "Lagret.":"Saved.",
+    "Visningsnavn":"Display name", "Nettadresse":"Web address", "Fjern lenke":"Remove link",
+    "Innboks · grocious":"Inbox · grocious", "Last opp":"Upload", "Ta bilde":"Take photo", "Legg til kvittering":"Add receipt",
+    "Hvem tilhører kvitteringen?":"Who does this receipt belong to?", "Velg person":"Select a person", "Last opp kvitteringer":"Upload receipts",
+    "For eksempel KIWI eller Elkjøp":"For example, KIWI or Elkjøp", "Send bilde":"Submit photo", "Maks. 32 MB per fil, 10 filer. Originalene bevares. Bilder kan trenge tolkning eller manuell utfylling.":"Max 32 MB per file, 10 files. Originals are preserved. Images may need interpretation or manual completion.",
+    "tilkoblet":"connected", "ikke tilkoblet":"not connected", "sist mottatt":"last received", "Bekreftet":"Confirmed", "Koblet":"Linked", "Forkastet":"Discarded",
+    "Ingen kvitteringer her ennå.":"No receipts here yet.", "Innboks · grocious":"Inbox · grocious",
+    "← Arkiv":"← Archive", "Komplette kildedata bevares. Nedlastede leverandørbilder vises der de finnes; en «laget PDF» i den gamle eksporten er en Grocious-visning.":"Complete source data is preserved. Downloaded retailer images are shown when available; a “generated PDF” in the old export is a Grocious view.",
+    "arkiverte kjøp":"archived purchases", "Status/indeks JSON":"Status/index JSON", "Leverandørbilder":"Retailer images", "se":"see", "profilstatus i indeks":"profile status in index",
+    "Dato":"Date", "Butikk":"Store", "Arkiv":"Archive", "Alle detaljer og originalfiler":"All details and original files",
+    "Komplett JSON":"Complete JSON", "Alle arkivfiler ZIP":"All archive files ZIP", "Komplette originale API-data er arkivert. Et eget kvitteringsbilde er ikke funnet i de undersøkte kallene.":"Complete original API data is archived. A separate receipt image was not found in the calls examined.",
+    "Rådata er arkivert. Leverandørbilde er ikke hentet ennå.":"Raw data is archived. The retailer image has not been retrieved yet.", "Kilden oppgir at dette kjøpet ikke har egen kvittering. Kjøpsopplysningene er bevart.":"The source says this purchase has no separate receipt. Purchase details are preserved.",
+    "Leverandørens kvitteringsbilde":"Retailer receipt image", "Varelinjer":"Line items", "Vare":"Item", "Antall":"Quantity", "Enhet":"Unit", "Beløp":"Amount",
+    "Alle kildefelter, inkludert betaling, pant, MVA og bonus der oppgitt":"All source fields, including payment, deposits, VAT and bonus where provided",
+    "Kontrollavvik:":"Validation issues:", "Arkivert":"Archived", "Dokumenter kontrolleres mot SHA-256 ved nedlasting.":"Documents are checked against SHA-256 when downloaded.",
+    "Antall/enhet oppgitt av Coop":"Quantity/unit reported by Coop", "Rabatt":"Discount", "MVA":"VAT", "Grunnlag":"Base", "Sats":"Rate", "Sum":"Total",
+    "Del":"Section", "Kjøp":"Purchase", "Medlemsfordel":"Member benefit", "Medlemsfordeler":"Member benefits", "Hele originalteksten, inkludert betaling og referanser":"Full original text, including payment and references",
+    "Originalen og alle kildedata er bevart.":"The original and all source data are preserved.", "Ukjent antall eller rabatt vises som «—».":"Unknown quantity or discount is shown as “—”.",
+    "← grocious":"← grocious", "Forsiden":"Home", "Tilbud":"Offer", "Vilkår":"Terms", "Mer informasjon":"More information", "Gyldighet":"Validity",
+    "Åpne hos tilbyderen ↗":"Open at retailer ↗", "Opplysninger hentet fra":"Information retrieved from", "Å åpne tilbudet aktiverer det ikke.":"Opening an offer does not activate it.",
+    "Kvittering":"Receipt", "Original":"Original", "Kvitteringsbilde":"Receipt image", "Ingen tekst hentet ut.":"No text extracted.", "Alle filer":"All files",
+    "hovedposten":"main receipt", "Denne posten eksporteres ikke separat.":"This receipt is not exported separately.", "Koblede bilag (":"Linked receipts (", "Åpne tilknyttet bilag":"Open linked receipt",
+    "Originalene finnes under «Original» og følger med i ZIP-nedlastingen.":"The originals are under “Original” and are included in the ZIP download.", "Flere bilag til samme kjøp? (":"Multiple receipts for the same purchase? (",
+    "Hvilket dokument er bilaget? Velg dokumentet som skal gi beløp og varelinjer i eksporten. Det andre legges ved og eksporteres ikke separat. Begge originalene beholdes; bare hovedposten eksporteres. Ingen beløp eller varelinjer slås sammen. Koblingen kan foreløpig ikke angres i appen.":"Which document should be the main receipt? Choose the document that supplies the amount and line items in the export. The other will be attached and not exported separately. Both originals are kept; only the main receipt is exported. Amounts and line items are never merged. This link cannot currently be undone in the app.",
+    "Ukjent beløp":"Unknown amount", "Forkastet post — kan legges ved denne hovedposten uten å eksporteres separat.":"Discarded receipt — it can be attached to this main receipt without being exported separately.",
+    "Begge er bekreftet og eksporteres nå hver for seg. Kontroller om dette er samme kjøp.":"Both are confirmed and currently exported separately. Check whether they are the same purchase.",
+    "som bilag":"as the receipt", "(denne) som bilag":"(this one) as the receipt", "Tolk kvitteringen":"Interpret receipt",
+    "Bare denne kvitteringen sendes til valgt leverandør. Egne rettelser overstyrer tolkingen.":"Only this receipt is sent to the selected provider. Your corrections override the interpretation.",
+    "OpenRouter sender kvitteringsinnholdet til OpenRouter og den valgte modellleverandøren. Gratis modelltilgjengelighet og leverandørens databehandling kan variere.":"OpenRouter sends receipt contents to OpenRouter and the selected model provider. Free model availability and provider data handling may vary.",
+    "Ikke konfigurert":"Not configured", "Merknader fra tolkingen:":"Interpretation notes:", "regler":"rules", "Tidligere tolkinger (":"Previous interpretations (",
+    " inn / ":" in / ", " ut · ":" out · ", "Bruk denne tolkingen":"Use this interpretation", "Gjennomgå kvittering":"Review receipt", "Ukjent":"Unknown",
+    "Husholdningsmedlem:":"Household member:", "Mottatt via:":"Received via:", "Status:":"Status:", "Kontroller:":"Checks:",
+    "Varelinjer + oppgitt MVA stemmer med totalbeløpet.":"Line items + reported VAT match the total.", "Dato (DD.MM.ÅÅÅÅ)":"Date (DD/MM/YYYY)",
+    "Dag, måned, år — for eksempel 08.09.2026":"Day, month, year — for example 08/09/2026", "Tid":"Time", "Totalbeløp":"Total amount", "Valuta":"Currency",
+    "Kategori":"Category", "Betaling":"Payment", "Betalingsmåte":"Payment method", "Kortets siste fire siffer":"Last four card digits", "Terminal":"Terminal",
+    "Autorisasjonskode":"Authorization code", "Notat":"Note", "Detaljspesifikasjon / varelinjer (":"Details / line items (", "Type":"Type", "Legg til vare":"Add item",
+    "Lagre endringer":"Save changes", "Endringer lagres separat fra originalen. Lagring setter kvitteringen tilbake til gjennomgang.":"Changes are saved separately from the original. Saving returns the receipt to review.",
+    "Bekreft":"Confirm", "Forkast":"Discard", "Kunne ikke lagre":"Could not save", "Til innboksen":"Back to inbox",
+    "Kvittering delt til Grocious":"Receipt shared with Grocious", "Fullfør opplasting":"Complete upload", "Velg hvem kvitteringen tilhører og hvilken butikk den er fra før den legges i husholdningsarkivet.":"Choose who the receipt belongs to and which store it is from before adding it to the household archive.",
+    "Legg i innboksen":"Add to inbox", "Filer som ikke sendes videre slettes automatisk etter én time.":"Files that are not submitted are automatically deleted after one hour.",
+    "Velg eller skriv inn en gyldig butikk (maks. 100 tegn).":"Select or enter a valid store (max 100 characters).", "Velg om lenkelisten skal vises.":"Choose whether to show the link list.",
+    "mat":"Groceries", "alkohol":"Alcohol", "apotek":"Pharmacy", "husholdning":"Household", "restaurant":"Restaurant", "transport":"Transport", "annet":"Other", "ukjent":"Unknown",
+    "Opplasting":"Upload", "Delt fra mobil":"Shared from mobile", "E-post":"Email", "Totalbeløp mangler":"Total amount is missing", "Dato mangler":"Date is missing",
+    "Butikk mangler":"Store is missing", "Valuta mangler":"Currency is missing", "Varelinjer mangler":"Line items are missing",
+    "Varelinjene summerer ikke til totalen":"Line items do not add up to the total", "Modellens totalbeløp finnes ikke i teksten":"The model's total amount does not appear in the text",
+    "Dato (DD.MM.ÅÅÅÅ)":"Date (DD/MM/YYYY)",
+    "Velg hvem i husholdningen kvitteringen tilhører.":"Choose who in the household the receipt belongs to.", "Velg en butikk for hver kvittering.":"Choose a store for each receipt.",
+    "Maksimalt 32 MB per fil og 10 filer per opplasting":"Maximum 32 MB per file and 10 files per upload", "Maksimalt 10 filer":"Maximum 10 files",
+    "Velg en fil eller del tekst":"Choose a file or share text", "Del en fil eller tekst":"Share a file or text", "Filen er tom eller større enn 32 MB":"The file is empty or larger than 32 MB",
+    "Ugyldig filter":"Invalid filter", "Ugyldige korrigeringer":"Invalid corrections", "Dato må være en gyldig dato i formatet DD.MM.ÅÅÅÅ":"Date must be valid and use the DD/MM/YYYY format",
+    "Varelinjene må være gyldig JSON":"Line items must be valid JSON", "Generert kopi - se originalfil i arkivet":"Generated copy — see the original file in the archive",
+    "Ugyldig dato":"Invalid date", "Ugyldig butikk":"Invalid store", "Ugyldig beløp":"Invalid amount", "Ugyldig tekstfelt":"Invalid text field",
+    "Ukjent kategori":"Unknown category", "Ugyldig valuta":"Invalid currency", "Ugyldige varelinjer":"Invalid line items", "Ugyldig status":"Invalid status",
+    "Kvitteringen er koblet. Gjennomgå den via kjedekvitteringen.":"This receipt is linked. Review it through the retailer receipt.",
+    "En koblet kvittering beholdes som vedlegg; den kan ikke eksporteres på nytt":"A linked receipt is kept as an attachment and cannot be exported again.",
+    "Butikk, dato, beløp og valuta må fylles ut før bekreftelse":"Store, date, amount and currency are required before confirmation.",
+    "Kan ikke lese filen":"Could not read file", "Kunne ikke tolke kvitteringen":"Could not interpret receipt", "Kunne ikke behandle kvitteringen":"Could not process receipt",
+    "Ukjent korrigeringsfelt":"Unknown correction field", "Ugyldig betalingsinformasjon":"Invalid payment information", "Kortreferansen skal være fire siffer":"Card reference must contain four digits",
+    "For mange nivåer med e-postvedlegg":"Email attachments are nested too deeply", "Velg en kvittering som hovedpost":"Choose a receipt as the main receipt",
+    "En kvittering kan ikke kobles til seg selv":"A receipt cannot be linked to itself", "Velg en hovedpost som ikke er koblet eller forkastet":"Choose a main receipt that is not linked or discarded",
+    "Denne hovedposten har allerede koblede bilag. Behold den som hovedpost.":"This main receipt already has linked receipts. Keep it as the main receipt.", "Kvitteringen er allerede koblet til en annen original":"This receipt is already linked to another original",
+    "Modellen fullførte ikke tolkingen. Regelresultatet er beholdt.":"The model did not finish interpreting the receipt. The rule-based result has been kept.",
+    "Modellen returnerte ugyldig JSON. Prøv tolkingen igjen; eksisterende data er beholdt.":"The model returned invalid JSON. Try interpreting again; existing data has been kept.",
+    "Gateway krever tekst. Velg en bildemodell eller fyll inn feltene.":"The gateway requires text. Choose a vision model or fill in the fields.", "Gateway fullførte ikke tolkingen":"The gateway did not finish interpreting the receipt",
+    "Kvitteringen er allerede koblet":"This receipt is already linked", "Ukjent tolkning":"Unknown interpretation", "Ugyldig leverandør":"Invalid provider",
+    "Leverandøren er ikke konfigurert":"The provider is not configured", "Ukjent modellvalg":"Unknown model selection",
+    "Tolkingen feilet hos leverandøren. Prøv igjen senere; eksisterende data er beholdt.":"The provider could not interpret the receipt. Try again later; existing data has been kept.",
+    "Tolkingen hadde ugyldige felter; eksisterende data er beholdt.":"The interpretation had invalid fields; existing data has been kept.", "Ugyldig tolkevalg":"Invalid interpretation choice",
+    "Kunne ikke lese PDF-filen":"Could not read the PDF file", "Maksimalt 20 PDF-sider per fil":"Maximum 20 PDF pages per file", "PDF-bildene blir for store for tolkning":"PDF images are too large to interpret",
+    "For mange eller for store e-postvedlegg":"Too many or too-large email attachments", "Bildet er for stort":"The image is too large", "Bildeformatet støttes ikke":"Image format is not supported",
+    "Ugyldig bilde eller filformat":"Invalid image or file format", "For mye tekst i filen":"The file contains too much text",
+    "Du kan lagre opptil 20 lenker.":"You can save up to 20 links.", "Ugyldig lenke.":"Invalid link.", "Hver lenke trenger visningsnavn og nettadresse.":"Each link needs a display name and web address.",
+    "Bruk et navn på maks. 60 tegn og en gyldig nettadresse.":"Use a name of at most 60 characters and a valid web address.", "Nettadressen må begynne med https:// eller http://, uten innloggingsinformasjon.":"The address must start with https:// or http:// and contain no login credentials."
+  };
+
+  var locale = "en";
+  try { locale = localStorage.getItem("grocious.language") || document.cookie.match(/(?:^|; )grocious_language=(en|no)/)?.[1] || "en"; } catch (_) {}
+  if (locale !== "no") locale = "en";
+  function translate(value) {
+    if (locale === "no" || !value) return value;
+    var lead = value.match(/^\s*/)[0], tail = value.match(/\s*$/)[0];
+    var core = value.trim();
+    if (translations[core]) return lead + translations[core] + tail;
+    core = core.replace(/^(Brukt i|Opptjent bonus i|Tilbud og rabatter i|Kuponger i)\s*(\d{4})?$/, function (_, a, y) { return translations[a] + (y ? " " + y : ""); });
+    core = core.replace(/^(\d+) kvitteringer$/, "$1 receipts");
+    core = core.replace(/^(\d+) venter på gjennomgang · (\d+) bekreftet$/, "$1 awaiting review · $2 confirmed");
+    core = core.replace(/^Sum (.+?)( · bonus .+)?( · rabatt .+)?$/, function (_, total, bonus, discount) {
+      return "Total " + total.replace(/kr\b/g, "NOK") + (bonus ? bonus.replace(/kr\b/g, "NOK") : "") + (discount ? discount.replace("rabatt", "discount").replace(/kr\b/g, "NOK") : "");
+    });
+    core = core.replace(/kontrollavvik/g, "validation issue");
+    core = core.replace(/^\+?([\d,.]+)\s*kr$/, "$1 NOK");
+    core = core.replace(/^Viser (.+)–(.+) av (\d+)$/, "Showing $1–$2 of $3");
+    core = core.replace(/ · innboks · grocious$/, " · Inbox · grocious");
+    core = core.replace(/– kvitteringsarkiv( · grocious)?$/, "– receipt archive$1");
+    core = core.replace(/^Coop-kvittering · grocious$/, "Coop receipt · grocious");
+    core = core.replace(/^Arkivert (.+)\. Dokumenter kontrolleres mot SHA-256 ved nedlasting\.$/, "Archived $1. Documents are checked against SHA-256 when downloaded.");
+    core = core.replace(/^For eksempel (.+)$/, "For example, $1");
+    core = core.replace(/^Butikk \/ forhandler · (.+)$/, "Store / retailer · $1");
+    core = core.replace(/^Opplysninger hentet fra (.+)\. Å åpne tilbudet aktiverer det ikke\.$/, "Information retrieved from $1. Opening an offer does not activate it.");
+    core = core.replace(/^Butikk: (.+) · Husholdningsmedlem: (.+) · Mottatt via: (.+) · Status: (.+)$/, "Store: $1 · Household member: $2 · Received via: $3 · Status: $4");
+    core = core.replace(/^Kunne ikke hente varelinjer \((.+)\)\.$/, "Could not load line items ($1).");
+    return lead + (translations[core] || core) + tail;
+  }
+  function localize(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      var translatedText = translate(node.nodeValue);
+      if (translatedText !== node.nodeValue) node.nodeValue = translatedText;
+    }
+    else if (node.nodeType === Node.ELEMENT_NODE) {
+      ["aria-label", "title", "placeholder", "alt"].forEach(function (name) {
+        if (node.hasAttribute(name)) {
+          var original = node.getAttribute(name), translated = translate(original);
+          if (translated !== original) node.setAttribute(name, translated);
+        }
+      });
+      if ((node.tagName === "INPUT" && ["button", "submit", "reset"].includes(node.type)) && node.value) {
+        var originalValue = node.value, translatedValue = translate(originalValue);
+        if (translatedValue !== originalValue) node.value = translatedValue;
+      }
+      node.childNodes.forEach(localize);
+    }
+  }
+  function apply() {
+    document.documentElement.lang = locale === "no" ? "nb" : "en";
+    document.title = translate(document.title);
+    document.querySelectorAll("#language").forEach(function (select) { select.value = locale; });
+    if (locale === "en") localize(document.body);
+  }
+  apply();
+  new MutationObserver(function (records) {
+    if (locale !== "en") return;
+    records.forEach(function (record) {
+      record.addedNodes.forEach(localize);
+      if (record.type === "attributes") localize(record.target);
+    });
+  }).observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["aria-label", "title", "placeholder", "alt"]});
+  var select = document.getElementById("language");
+  if (select) select.addEventListener("change", function () {
+    locale = select.value === "no" ? "no" : "en";
+    try { localStorage.setItem("grocious.language", locale); } catch (_) {}
+    document.cookie = "grocious_language=" + locale + "; Path=/; Max-Age=31536000; SameSite=Lax";
+    location.reload();
+  });
+  window.grociousLocale = locale;
+}());

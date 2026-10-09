@@ -3,6 +3,8 @@
   "use strict";
   var root = document.documentElement;
   var KEY = "grocious.theme";
+  var locale = (document.cookie.match(/(?:^|; )grocious_language=(en|no)/) || [])[1] || "en";
+  var numberLocale = locale === "no" ? "nb-NO" : "en-GB";
 
   // ---- theme ------------------------------------------------------------
   var sel = document.getElementById("theme");
@@ -51,7 +53,7 @@
     otherRows.sort(function (a, b) {
       var x = a.dataset[key], y = b.dataset[key];
       if (!x !== !y) return !x ? 1 : -1;
-      var cmp = !x ? 0 : key === "amount" ? Number(x) - Number(y) : x.localeCompare(y, "nb", {numeric: true, sensitivity: "base"});
+      var cmp = !x ? 0 : key === "amount" ? Number(x) - Number(y) : x.localeCompare(y, locale === "no" ? "nb" : "en", {numeric: true, sensitivity: "base"});
       return cmp * direction || b.dataset.date.localeCompare(a.dataset.date);
     });
     otherRows.forEach(function (row) { document.getElementById("other-receipt-list").appendChild(row); });
@@ -62,8 +64,8 @@
   else showOtherPage();
 
   // ---- filters ----------------------------------------------------------
-  var nokFmt = new Intl.NumberFormat("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  function nok(x) { return nokFmt.format(x) + " kr"; }
+  var nokFmt = new Intl.NumberFormat(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function nok(x) { return nokFmt.format(x) + (locale === "no" ? " kr" : " NOK"); }
   var chain = "", month = "", page = 0, pageSize = 50;
   var items = Array.prototype.slice.call(document.querySelectorAll("#list > .receipt"));
   items.sort(function (a, b) { return b.dataset.date.localeCompare(a.dataset.date); });
@@ -100,7 +102,7 @@
       var absentX = x == null || x === "", absentY = y == null || y === "";
       if (absentX !== absentY) return absentX ? 1 : -1;
       if (absentX) cmp = 0;
-      else if (key === "store") cmp = x.localeCompare(y, "nb", {sensitivity: "base", numeric: true});
+      else if (key === "store") cmp = x.localeCompare(y, locale === "no" ? "nb" : "en", {sensitivity: "base", numeric: true});
       else if (key === "date") cmp = x.localeCompare(y);
       else cmp = Number(x) - Number(y);
       return cmp * direction || b.dataset.date.localeCompare(a.dataset.date);
@@ -150,7 +152,7 @@
     dates.push(todayOslo().slice(0, 7));
     Array.from(new Set(dates.map(function (d) { return d.slice(0, 4); }))).sort().reverse().forEach(function (y) { option(y, "Hele " + y); });
     Array.from(new Set(dates)).sort().reverse().forEach(function (d) {
-      option(d, new Intl.DateTimeFormat("nb-NO", {month:"long", year:"numeric", timeZone:"UTC"}).format(new Date(d + "-01T00:00:00Z")));
+      option(d, new Intl.DateTimeFormat(numberLocale, {month:"long", year:"numeric", timeZone:"UTC"}).format(new Date(d + "-01T00:00:00Z")));
     });
     function choose(value) {
       controls.dataset.period = value;
@@ -192,7 +194,7 @@
         if (dot) { badge.setAttribute("role", "img"); badge.setAttribute("aria-label", "Registrert i Beancount"); }
         else { badge.removeAttribute("role"); badge.removeAttribute("aria-label"); }
         status.textContent = record.state === "unregistered" ? "Ikke registrert i Beancount" :
-          (record.state === "changed" ? "Endret etter registrering" : "Registrert i Beancount") + " · " + new Date(record.registered_at).toLocaleDateString("nb-NO");
+          (record.state === "changed" ? "Endret etter registrering" : "Registrert i Beancount") + " · " + new Date(record.registered_at).toLocaleDateString(numberLocale);
         reference.value = record.reference || ""; button.textContent = record.state === "changed" ? "Marker endringen som ført" : record.state === "registered" ? "Oppdater referanse" : "Registrert i Beancount";
         undo.hidden = record.state === "unregistered";
       }
@@ -272,7 +274,7 @@
   // ---- expandable line items -------------------------------------------
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function render(box, lines, currency) {
-    function money(value) { return nokFmt.format(value) + " " + (currency === "NOK" ? "kr" : currency || ""); }
+    function money(value) { return nokFmt.format(value) + " " + (currency === "NOK" ? (locale === "no" ? "kr" : "NOK") : currency || ""); }
     if (!lines.length) { box.innerHTML = '<p class="mut small">Ingen varelinjer.</p>'; return; }
     var tot = 0, rows = lines.map(function (l) {
       tot += +l.amount || 0;
