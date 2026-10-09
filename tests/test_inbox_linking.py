@@ -31,7 +31,7 @@ def test_manual_inbox_link_preserves_originals_and_single_export(client, pair):
     assert linking.candidates(invoice)[0]["related"]
     page = client.get("/inbox/" + mail)
     assert page.status_code == 200
-    assert "Begge er bekreftet" in page.text
+    assert "Both are confirmed" in page.text
     assert len(store.exports("2026-09")) == 2  # suggestions do not change anything
     response = client.post("/inbox/" + mail + "/link", data={"source": "inbox", "target": invoice})
     assert response.status_code == 303 and response.location == "/inbox/" + invoice
@@ -56,7 +56,7 @@ def test_manual_inbox_link_preserves_originals_and_single_export(client, pair):
         for doc in primary["documents"]:
             assert any(name.endswith(doc["filename"]) for name in bundle.namelist())
     assert client.get("/inbox/" + invoice).status_code == 200
-    assert "hovedposten" in client.get("/inbox/" + mail).text
+    assert "main receipt" in client.get("/inbox/" + mail).text
 
 
 def test_link_graph_guards(pair):
@@ -94,10 +94,10 @@ def test_discarded_candidate_only_attaches_to_active_primary(client, pair):
     before = archive.read_receipt("inbox", invoice)
     page = client.get("/inbox/" + invoice)
     assert page.status_code == 200
-    assert "Forkastet post" in page.text
-    assert "Koblingen kan foreløpig ikke angres" in page.text
-    assert "Bruk mail.eml som bilag" not in page.text
-    assert "Bruk invoice.txt (denne) som bilag" in page.text
+    assert "Discarded receipt" in page.text
+    assert "This link cannot currently be undone" in page.text
+    assert "Use mail.eml as receipt" not in page.text
+    assert "Use invoice.txt (this one) as receipt" in page.text
     with pytest.raises(ValueError):
         linking.link(invoice, "inbox", mail)
     response = client.post("/inbox/" + mail + "/link", data={"source": "inbox", "target": invoice})

@@ -11,7 +11,7 @@ MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 
 
 def language():
-    return request.cookies.get("grocious_language", "en") if has_request_context() else "en"
+    return "no" if has_request_context() and request.cookies.get("grocious_language") == "no" else "en"
 
 
 def num(value, decimals=0, sign=False):

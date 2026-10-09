@@ -3,7 +3,7 @@
   "use strict";
   var root = document.documentElement;
   var KEY = "grocious.theme";
-  var locale = (document.cookie.match(/(?:^|; )grocious_language=(en|no)/) || [])[1] || "en";
+  var locale = document.documentElement.dataset.language === "no" ? "no" : "en";
   var numberLocale = locale === "no" ? "nb-NO" : "en-GB";
 
   // ---- theme ------------------------------------------------------------

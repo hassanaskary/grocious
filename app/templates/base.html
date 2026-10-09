@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ 'nb' if language == 'no' else 'en' }}" data-language="{{ language }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,14 +29,18 @@ try { var th = localStorage.getItem("grocious.theme"); if (th && th !== "auto") 
     {% if demo %}<span class="chip demo" title="GROCIOUS_DEMO=1: anonymiserte fixtures, ingen ekte tokens">DEMO</span>{% endif %}
     <details class="settings-menu">
       <summary aria-label="Innstillinger" title="Innstillinger"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--card)"/><circle cx="15" cy="17" r="3" fill="var(--card)"/></svg></summary>
-      <div class="settings-popover"><h2>Innstillinger</h2><label for="language" class="settings-label">Språk</label>
+      <div class="settings-popover"><h2>Innstillinger</h2><form action="/language" method="post" class="language-settings">
+    <label for="language" class="settings-label">Språk</label>
+    <input type="hidden" name="next" value="{{ request.full_path }}">
     <label class="theme-pick" title="Velg språk">
       <span class="ico" aria-hidden="true">文</span>
-      <select id="language" aria-label="Språk">
-        <option value="en">English</option>
-        <option value="no">Norsk</option>
+      <select id="language" name="language" aria-label="Språk">
+        <option value="en"{{ ' selected' if language == 'en' }}>English</option>
+        <option value="no"{{ ' selected' if language == 'no' }}>Norsk</option>
       </select>
     </label>
+    <button class="btn" type="submit">Bruk språk</button>
+    </form>
     <label for="theme" class="settings-label">Utseende</label>
     <label class="theme-pick" title="Tema (husk i nettleseren)">
       <span class="ico" aria-hidden="true">◐</span>
@@ -73,6 +77,7 @@ try { var th = localStorage.getItem("grocious.theme"); if (th && th !== "auto") 
   <span>Live oversikter caches 5 min · kvitteringsarkiv lagres lokalt</span>
   <span class="links"><a href="/api/summary">api/summary</a>{% if current_month %} · <a href="{{ url_for('api_export', ym=current_month, fmt='csv', member=request.args.get('member'), provider=request.args.get('provider')) }}">eksport {{ current_month }}</a>{% endif %}</span>
 </footer>
+<script src="/translations.js"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 <script src="{{ url_for('static', filename='navigation.js') }}"></script>
 <script src="{{ url_for('static', filename='i18n.js') }}"></script>

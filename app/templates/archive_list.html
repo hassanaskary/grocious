@@ -10,7 +10,7 @@
   </div>
   <div class="scroll"><table class="data">
     <thead><tr><th>Dato</th><th>Butikk</th><th>Medlem</th><th class="n">Beløp</th><th>Arkiv</th></tr></thead>
-    <tbody>{% for r in data.receipts %}<tr><td>{{ r.date|day }}</td><td>{{ r.store }}</td><td>{{ r.profile_name }}</td><td class="n" data-num>{{ r.amount|nok(2) }}</td><td><a href="/archive/{{ provider }}/{{ r.archive_id }}">Alle detaljer og originalfiler</a></td></tr>{% endfor %}</tbody>
+    <tbody>{% for r in data.receipts %}<tr><td>{{ r.date|day }}</td><td translate="no">{{ r.store }}</td><td translate="no">{{ r.profile_name }}</td><td class="n" data-num>{{ r.amount|nok(2) }}</td><td><a href="/archive/{{ provider }}/{{ r.archive_id }}">Alle detaljer og originalfiler</a></td></tr>{% endfor %}</tbody>
   </table></div>
 </section>
 {% endblock %}

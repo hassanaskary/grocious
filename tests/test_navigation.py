@@ -28,7 +28,7 @@ class NavigationTest(unittest.TestCase):
         self.assertEqual(navigation.load(), self.value)
         html = self.client.get("/").get_data(as_text=True)
         self.assertIn("My &lt;budget&gt;", html)
-        self.assertIn('aria-label="Dine lenker" hidden', html)
+        self.assertIn('aria-label="Your links" hidden', html)
 
     def test_unsafe_urls_cannot_replace_saved_links(self):
         self.client.post("/api/navigation", json=self.value)

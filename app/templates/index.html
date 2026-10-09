@@ -45,8 +45,8 @@
       <button type="button" class="offer-dismiss" aria-label="Skjul {{ o.title }}" title="Skjul tilbud">×</button>
       <a class="offer-link" href="{{ url_for('offer_detail', source=o.source, oid=o.id, profile_id=o.profile_id) }}">
         {% if o.img %}<img src="{{ o.img }}" alt="" loading="lazy" onerror="this.style.display='none'">{% endif %}
-        <div class="b"><span class="badge {{ o.source }}">{{ o.source }}</span><div class="t"><b>{{ o.title }}</b>{% if o.desc and o.desc!=o.title %}<br>{{ o.desc }}{% endif %}</div>
-        {% if o.price %}<strong>{{ o.price }}</strong>{% endif %}<span class="mut small">Se detaljer og vilkår →</span></div>
+        <div class="b"><span class="badge {{ o.source }}">{{ o.source }}</span><div class="t"><b translate="no">{{ o.title }}</b>{% if o.desc and o.desc!=o.title %}<br><span translate="no">{{ o.desc }}</span>{% endif %}</div>
+        {% if o.price %}<strong translate="no">{{ o.price }}</strong>{% endif %}<span class="mut small">Se detaljer og vilkår →</span></div>
       </a>
       {% if o.source=='rema' and o.code %}<div class="b">{% if o.activated %}<span class="done">✓ Aktivert</span>{% else %}<form method="post" action="/rema/offer/{{ o.code }}/activate"><input type="hidden" name="profile_id" value="{{ o.profile_id or 'default' }}"><button class="btn">Aktiver · {{ o.profile_name or 'Default' }}</button></form>{% endif %}</div>{% endif %}
     </article>
@@ -73,7 +73,7 @@
     <li class="receipt" data-profile="{{ x.profile_id or 'default' }}" data-source="inbox" data-id="{{ x.id }}" data-lines="/inbox/{{ x.archive_id }}.json" data-currency="{{ x.currency or '' }}" data-date="{{ x.date or '' }}" data-store="{{ x.store or '' }}" data-amount="{{ x.amount if x.amount is not none else '' }}"{% if loop.index > 20 %} hidden{% endif %}>
       <button class="head" type="button" aria-expanded="false">
         <span class="badge">Innboks</span>
-        <span class="store">{{ x.store or x.intake.filename or 'Ukjent butikk' }}</span>
+        <span class="store">{% if x.store or x.intake.filename %}<span translate="no">{{ x.store or x.intake.filename }}</span>{% else %}Ukjent butikk{% endif %}</span>
         <span class="date">{{ x.date|day if x.date else 'Ukjent dato' }}</span>
         <span class="amt" data-num>{{ x.amount|num(2) if x.amount is not none else '—' }} {{ x.currency or '' }}</span>
         <span class="extra mut">{% if x.review.state != 'confirmed' %}Til gjennomgang{% endif %}</span>
@@ -130,7 +130,7 @@
         data-lines="{% if x.hasReceipt %}/trumf/receipt/{{ x.profile_id or 'default' }}/{{ x.id }}.json{% endif %}">
       <button class="head" type="button" aria-expanded="false">
         <span class="badge trumf">{{ x.chain or 'Trumf' }}</span>
-        <span class="store">{{ x.store }}<small class="receipt-owner">{{ x.profile_name or 'Default' }}</small></span>
+        <span class="store"><span translate="no">{{ x.store }}</span><small class="receipt-owner" translate="no">{{ x.profile_name or 'Default' }}</small></span>
         <span class="date">{{ x.date|day }}</span>
         <span class="amt" data-num>{{ x.amount|nok(2) }}</span>
         <span class="extra pos" data-num>{% if x.bonus %}+{{ x.bonus|num(2) }}{% endif %}</span>
@@ -147,7 +147,7 @@
         data-lines="/rema/receipt/{{ x.profile_id or 'default' }}/{{ x.id }}.json">
       <button class="head" type="button" aria-expanded="false">
         <span class="badge rema">Rema</span>
-        <span class="store">{{ x.store }}<small class="receipt-owner">{{ x.profile_name or 'Default' }}</small></span>
+        <span class="store"><span translate="no">{{ x.store }}</span><small class="receipt-owner" translate="no">{{ x.profile_name or 'Default' }}</small></span>
         <span class="date">{{ x.date|dt }}</span>
         <span class="amt" data-num>{{ x.amount|nok(2) }}</span>
         <span class="extra pos" data-num>{% if x.discount %}−{{ x.discount|num(2) }}{% endif %}</span>
@@ -163,7 +163,7 @@
     <li class="receipt" data-profile="{{ x.profile_id or 'default' }}" data-source="coop" data-id="{{ x.id }}" data-chain="coop" data-bonus="{{ x.list_bonus if x.list_bonus is not none else '' }}" data-discount="{{ x.list_discount if x.list_discount is not none else '' }}" data-month="{{ (x.date or '')[:7] }}" data-date="{{ x.date or '' }}" data-store="{{ x.store or '' }}" data-amount="{{ x.amount if x.amount is not none else '' }}" data-lines="/coop/receipt/{{ x.archive_id }}.json">
       <button class="head" type="button" aria-expanded="false">
         <span class="badge coop">Coop</span>
-        <span class="store">{{ x.store }}<small class="receipt-owner">{{ x.profile_name or 'Default' }}</small></span>
+        <span class="store"><span translate="no">{{ x.store }}</span><small class="receipt-owner" translate="no">{{ x.profile_name or 'Default' }}</small></span>
         <span class="date">{{ x.date|day }} {{ x.time or '' }}</span>
         <span class="amt" data-num>{{ x.amount|nok(2) }}</span>
         <span class="extra coop-savings">

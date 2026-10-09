@@ -7,15 +7,78 @@ import json
 import themes
 
 
+def upload_language_test_receipt(client, store_name="Language Test Store"):
+    response = client.post(
+        "/inbox",
+        data={
+            "profile_id": "default",
+            "stores": store_name,
+            "files": (io.BytesIO(b"Language Test Store\n08.09.2026\nTOTALT 42,00 NOK"), "receipt.txt"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 303
+    return response.location
+
+
 def test_index_renders_everything(client):
     html = client.get("/").get_data(as_text=True)
     assert "grocious" in html and "DEMO" in html
+    assert 'lang="en"' in html and "Settings" in html and "Offers &amp; coupons" in html
     assert 'id="theme"' in html and "Catppuccin Mocha" in html and 'value="auto"' in html
-    assert "Tilbud &amp; kuponger" in html and "Aktiver" in html and "✓ Aktivert" in html
+    assert 'id="language"' in html and 'value="no"' in html and "Activate" in html and "✓ Activated" in html
+    assert html.index('src="/translations.js"') < html.index('src="/static/app.js"')
     assert 'data-chain="trumf"' in html and 'data-chain="rema"' in html
     assert 'data-month="2026-06"' in html  # dates populate the shared period controls
-    assert "412,37\u00a0kr" in html  # NOK format as in Porteføljen (nbsp before kr)
+    assert "412.37\u00a0NOK" in html
     assert "<style>" not in html  # no inline CSS left
+    translations = client.get("/translations.js")
+    assert translations.mimetype == "application/javascript" and "window.grociousTranslations=" in translations.text
+
+
+def test_norwegian_language_preference_renders_and_persists(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("GROCERY_DATA", str(tmp_path))
+    response = client.post("/language", data={"language": "no", "next": "/inbox"})
+    assert response.status_code == 303
+    assert response.headers["Location"] == "/inbox"
+    assert "grocious_language=no" in response.headers["Set-Cookie"]
+
+    detail_path = upload_language_test_receipt(client)
+    html = client.get("/inbox").get_data(as_text=True)
+    assert 'lang="nb"' in html and "Innstillinger" in html and "Last opp" in html
+    assert "42,00\u00a0kr" in html
+    detail = client.get(detail_path).get_data(as_text=True)
+    assert 'placeholder="DD.MM.ÅÅÅÅ"' in detail
+
+
+def test_language_preference_rejects_invalid_values_and_external_redirects(client):
+    invalid = client.post("/language", data={"language": "fr", "next": "/inbox"})
+    assert invalid.status_code == 400
+    external = client.post("/language", data={"language": "en", "next": "https://example.com"})
+    assert external.status_code == 303
+    assert external.headers["Location"] == "/"
+
+
+def test_english_is_default_across_inbox_archive_and_offer_pages(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("GROCERY_DATA", str(tmp_path))
+    inbox = client.get("/inbox").get_data(as_text=True)
+    assert 'lang="en"' in inbox and "Upload" in inbox and "Take photo" in inbox
+    detail_path = upload_language_test_receipt(client)
+    detail = client.get(detail_path).get_data(as_text=True)
+    assert "Interpret receipt" in detail and "Date (DD/MM/YYYY)" in detail and "Store:" in detail
+
+    archive = client.get("/archive/rema").get_data(as_text=True)
+    assert "receipt archive" in archive and "Complete source data is preserved." in archive
+
+    offer = client.get("/offers/rema/DEMO-KAFFE").get_data(as_text=True)
+    assert offer.startswith("<!doctype html>") and "Opening an offer does not activate it." in offer
+
+
+def test_language_translation_preserves_user_supplied_store_names(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("GROCERY_DATA", str(tmp_path))
+    detail_path = upload_language_test_receipt(client, store_name="Kjøp")
+    html = client.get(detail_path).get_data(as_text=True)
+    assert '<h1><span translate="no">Kjøp</span></h1>' in html
 
 
 def test_index_survives_failed_sources(client, monkeypatch):
@@ -24,8 +87,8 @@ def test_index_survives_failed_sources(client, monkeypatch):
     monkeypatch.setattr(webgui, "trumf_data", lambda: {"ok": False, "err": "cookie expired"})
     monkeypatch.setattr(webgui, "rema_data", lambda: {"ok": False, "err": "401"})
     html = client.get("/").get_data(as_text=True)
-    assert html.count("Kunne ikke oppdatere live-data. Arkiverte kjøp vises.") == 2
-    assert "Ingen tilbud" in html
+    assert html.count("Could not refresh live data. Archived purchases are shown.") >= 2
+    assert "No offers" in html
 
 
 def test_themes_css_and_files(client):
@@ -159,8 +222,14 @@ def test_static_assets_and_no_cdn(client):
 
 def test_nok_filters():
     import ui
+    import webgui
 
     nb = "\u00a0"
-    assert ui.nok(1234.5, 2) == f"1{nb}234,50{nb}kr" and ui.nok(0) == f"0{nb}kr" and ui.nok(None) == "–"
-    assert ui.day("2026-09-04") == "04.09.2026" and ui.dt("2026-09-04 18:12") == "04.09.2026 18:12"
-    assert ui.month_label("2026-06") == "jun 2026"
+    assert ui.nok(1234.5, 2) == f"1,234.50{nb}NOK" and ui.nok(0) == f"0{nb}NOK" and ui.nok(None) == "–"
+    assert ui.day("2026-09-04") == "04/09/2026" and ui.dt("2026-09-04 18:12") == "04/09/2026 18:12"
+    assert ui.month_label("2026-06") == "Jun 2026"
+
+    with webgui.app.test_request_context(headers={"Cookie": "grocious_language=no"}):
+        assert ui.nok(1234.5, 2) == f"1{nb}234,50{nb}kr"
+        assert ui.day("2026-09-04") == "04.09.2026"
+        assert ui.month_label("2026-06") == "jun 2026"

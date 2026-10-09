@@ -12,7 +12,7 @@ import agent_routes
 import coop_receipt_ui
 from inbox import store as inbox_store
 from inbox.routes import bp as inbox_bp
-import demo, themes, ui, dashboard_stats, bonus_sources, offers as offer_ui, profiles, retailers
+import demo, themes, ui, i18n, dashboard_stats, bonus_sources, offers as offer_ui, profiles, retailers
 
 DATA = os.environ.get("GROCERY_DATA", "/data")
 REMA_PHONE = os.environ.get("REMA_PHONE", "")
@@ -28,10 +28,44 @@ app.register_blueprint(agent_routes.bp)
 @app.context_processor
 def navigation_context():
     household = [{"id":"default","name":"Demo","providers":["trumf","rema","coop"]}] if DEMO else profiles.connected_profiles()
-    return {"navigation": navigation.load(), "household_profiles": household, "inbox_pending_count": sum(
+    return {"navigation": navigation.load(), "household_profiles": household, "language": ui.language(), "inbox_pending_count": sum(
         row.get("review", {}).get("state") == "needs_review"
         for row in receipt_archive.summary("inbox")["receipts"]
     )}
+
+
+@app.after_request
+def localize_html(response):
+    if response.mimetype == "text/html" and not response.direct_passthrough:
+        response.set_data(i18n.translate_html(response.get_data(as_text=True), ui.language()))
+    return response
+
+
+@app.post("/language")
+def set_language():
+    selected = request.form.get("language")
+    if selected not in i18n.LANGUAGES:
+        return "Invalid language", 400
+    target = request.form.get("next", "/")
+    if not target.startswith("/") or target.startswith("//") or "\\" in target:
+        target = "/"
+    response = redirect(target, 303)
+    response.set_cookie(
+        "grocious_language",
+        selected,
+        max_age=60 * 60 * 24 * 365,
+        httponly=True,
+        secure=request.is_secure,
+        samesite="Lax",
+        path="/",
+    )
+    return response
+
+
+@app.get("/translations.js")
+def translations_js():
+    payload = "window.grociousTranslations=" + json.dumps(i18n.TRANSLATIONS, ensure_ascii=False) + ";"
+    return Response(payload, mimetype="application/javascript", headers={"Cache-Control": "public, max-age=3600"})
 
 
 def _cache(ttl):

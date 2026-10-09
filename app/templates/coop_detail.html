@@ -5,14 +5,14 @@
 <section class="panel detail">
   <div class="dhead">
     <span class="badge coop">Coop</span>
-    <h1>{{ r.store }}</h1>
+    <h1 translate="no">{{ r.store }}</h1>
     <div class="mut">{{ r.date|day }} {{ r.time or '' }} · <b data-num>{{ r.amount|nok(2) }}</b> · {{ r.profile_name }}</div>
     <div class="dl"><a href="/coop/receipt/{{ r.archive_id }}.pdf">Original PDF</a><a href="/coop/receipt/{{ r.archive_id }}.json">Komplett JSON</a><a href="/coop/receipt/{{ r.archive_id }}.csv">Varelinjer CSV</a></div>
   </div>
   <h2>Varelinjer</h2>
   <div class="scroll"><table class="data">
     <thead><tr><th>Vare</th><th>Antall/enhet oppgitt av Coop</th><th class="n">Beløp</th><th class="n">Rabatt</th></tr></thead>
-    <tbody>{% for l in r.lines %}<tr><td>{{ l.name }}</td><td>{{ l.quantity_text or '—' }}</td>
+    <tbody>{% for l in r.lines %}<tr><td translate="no">{{ l.name }}</td><td translate="no">{{ l.quantity_text or '—' }}</td>
       <td class="n" data-num>{{ l.amount|nok(2) if l.amount is not none else '—' }}</td><td class="n" data-num>{{ l.discount|nok(2) if l.discount is not none else '—' }}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% if r.tax %}

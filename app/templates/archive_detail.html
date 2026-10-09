@@ -3,7 +3,7 @@
 {% block content %}
 <p class="crumbs"><a href="/archive/{{ provider }}">← Arkiv</a></p>
 <section class="panel detail">
-  <div class="dhead"><span class="badge {{ provider }}">{{ provider }}</span><h1>{{ r.store }}</h1>
+  <div class="dhead"><span class="badge {{ provider }}">{{ provider }}</span><h1 translate="no">{{ r.store }}</h1>
     <div class="mut">{{ r.date|day }} {{ r.time or '' }} · <b data-num>{{ r.amount|nok(2) }}</b> · {{ r.profile_name }}</div>
     <div class="dl"><a href="/archive/{{ provider }}/{{ r.archive_id }}.json">Komplett JSON</a><a href="/archive/{{ provider }}/{{ r.archive_id }}.zip">Alle arkivfiler ZIP</a></div>
   </div>
@@ -16,7 +16,7 @@
   <h2>Varelinjer</h2>
   <div class="scroll"><table class="data">
     <thead><tr><th>Vare</th><th class="n">Antall</th><th>Enhet</th><th class="n">Beløp</th></tr></thead>
-    <tbody>{% for l in r.lines %}<tr><td>{{ l.name }}</td><td class="n">{{ l.qty if l.qty is not none else '—' }}</td><td>{{ l.unit or '—' }}</td><td class="n" data-num>{{ l.amount|nok(2) if l.amount is not none else '—' }}</td></tr>{% endfor %}</tbody>
+    <tbody>{% for l in r.lines %}<tr><td translate="no">{{ l.name }}</td><td class="n">{{ l.qty if l.qty is not none else '—' }}</td><td translate="no">{{ l.unit or '—' }}</td><td class="n" data-num>{{ l.amount|nok(2) if l.amount is not none else '—' }}</td></tr>{% endfor %}</tbody>
   </table></div>
   <details class="raw"><summary>Alle kildefelter, inkludert betaling, pant, MVA og bonus der oppgitt</summary><pre>{{ raw }}</pre></details>
   {% if r.validation.issues %}<p class="warn">Kontrollavvik: {{ r.validation.issues|join(', ') }}</p>{% endif %}
