@@ -65,7 +65,7 @@ def test_rema_discount_value_is_shown_on_homepage(client, monkeypatch):
     assert 'class="offer-discount"' in response.text
     assert "<span>Discount</span>:" in response.text
     assert "25%" in response.text
-    assert "10\u00a0NOK" in response.text
+    assert "10%" in response.text
 
 
 def test_rema_discount_value_without_known_unit_is_not_misrepresented():

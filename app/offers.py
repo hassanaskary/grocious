@@ -30,7 +30,8 @@ def normalize(source, raw):
         raw_value = raw.get("value")
         value = raw_value if isinstance(raw_value, (int, float)) and not isinstance(raw_value, bool) else None
         offer_type = raw.get("type") if isinstance(raw.get("type"), dict) else {}
-        discount_unit = "percent" if raw.get("unit") == "perc" else "nok" if offer_type.get("code") == "ppk" else None
+        # Personal price cuts use the percent value but omit the explicit `unit` field.
+        discount_unit = "percent" if raw.get("unit") == "perc" or offer_type.get("code") == "ppk" else None
         return {
             "id": raw.get("id") or raw.get("code"),
             "code": raw.get("code"),
